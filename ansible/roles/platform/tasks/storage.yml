@@ -1,0 +1,132 @@
+---
+- name: Ensure local-path manifest cache directory
+  ansible.builtin.file:
+    path: "{{ platform_local_path_manifest_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# The URL and checksum pin the official v0.0.37 release manifest. force=false
+# means a second run does not re-download; the checksum assertion below also
+# catches a truncated or edited cache instead of rendering it.
+- name: Download the pinned local-path release manifest
+  ansible.builtin.get_url:
+    url: "{{ platform_local_path_manifest_url }}"
+    dest: "{{ platform_local_path_manifest_path }}"
+    checksum: "sha256:{{ platform_local_path_manifest_sha256 }}"
+    mode: "0644"
+    force: false
+  register: platform_local_path_download
+
+- name: Stat the cached local-path manifest
+  ansible.builtin.stat:
+    path: "{{ platform_local_path_manifest_path }}"
+    checksum_algorithm: sha256
+  register: platform_local_path_manifest_stat
+
+- name: Verify cached local-path manifest checksum before rendering
+  ansible.builtin.assert:
+    that:
+      - platform_local_path_manifest_stat.stat.exists
+      - platform_local_path_manifest_stat.stat.checksum == platform_local_path_manifest_sha256
+    fail_msg: >-
+      Cached local-path manifest does not match the pinned v0.0.37 checksum.
+      Remove {{ platform_local_path_manifest_path }} and rerun --tags storage.
+
+# The renderer owns every local policy change (default StorageClass, resource
+# requests/limits, digest-pinned helper image). The checksum-verified source is
+# only ever read, so the cache remains byte-for-byte upstream.
+- name: Install the local-path manifest renderer
+  ansible.builtin.copy:
+    src: render_storage.py
+    dest: /tmp/render_storage.py
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Render the local-path manifest into an independent target
+  ansible.builtin.command:
+    argv:
+      - "{{ ansible_python_interpreter }}"
+      - /tmp/render_storage.py
+      - --source
+      - "{{ platform_local_path_manifest_path }}"
+      - --output
+      - "{{ platform_local_path_manifest_dir }}/rendered.yaml"
+      - --resources-json
+      - "{{ platform_local_path_resources | to_json }}"
+      - --helper-image
+      - "docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec"
+  register: platform_local_path_render
+  changed_when: platform_local_path_render.stdout | trim == 'changed'
+
+- name: Apply the rendered local-path manifest
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ kubeconfig_path }}"
+      - --request-timeout=30s
+      - apply
+      - -f
+      - "{{ platform_local_path_manifest_dir }}/rendered.yaml"
+  register: platform_local_path_apply
+  changed_when: >-
+    ' created' in platform_local_path_apply.stdout or
+    ' configured' in platform_local_path_apply.stdout
+
+- name: Wait for the local-path provisioner Deployment
+  ansible.builtin.command:
+    argv:
+      - timeout
+      - "240"
+      - kubectl
+      - --kubeconfig
+      - "{{ kubeconfig_path }}"
+      - --request-timeout=15s
+      - -n
+      - "{{ platform_local_path_namespace }}"
+      - rollout
+      - status
+      - deployment/local-path-provisioner
+      - --timeout=180s
+  changed_when: false
+
+- name: Read the local-path StorageClass
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ kubeconfig_path }}"
+      - --request-timeout=15s
+      - get
+      - storageclass
+      - "{{ platform_local_path_storage_class }}"
+      - -o
+      - json
+  register: platform_local_path_sc
+  changed_when: false
+
+- name: Verify local-path StorageClass semantics
+  ansible.builtin.assert:
+    that:
+      - (platform_local_path_sc.stdout | from_json).provisioner == 'rancher.io/local-path'
+      - (platform_local_path_sc.stdout | from_json).volumeBindingMode == 'WaitForFirstConsumer'
+      - (platform_local_path_sc.stdout | from_json).reclaimPolicy == 'Delete'
+      - >-
+        (((platform_local_path_sc.stdout | from_json).metadata.annotations | default({}))
+         .get('storageclass.kubernetes.io/is-default-class')) == 'true'
+    fail_msg: >-
+      local-path StorageClass must be the default rancher.io/local-path class
+      with WaitForFirstConsumer and Delete. Got
+      {{ (platform_local_path_sc.stdout | from_json) }}.
+
+- name: Show local-path result
+  ansible.builtin.debug:
+    msg:
+      - "local-path version: {{ platform_local_path_version }}"
+      - "manifest sha256: {{ platform_local_path_manifest_sha256 }}"
+      - "rendered manifest: {{ platform_local_path_manifest_dir }}/rendered.yaml"
+      - "StorageClass: {{ platform_local_path_storage_class }} (default, WaitForFirstConsumer, Delete)"
+      - "PVC data survives Pod deletion; deleting the PVC invokes local-path teardown."

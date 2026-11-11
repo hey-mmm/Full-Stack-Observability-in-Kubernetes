@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: demo
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: observability-demo
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: demo
+  source:
+    repoURL: https://github.com/hey-mmm/Full-Stack-Observability-in-Kubernetes.git
+    targetRevision: main
+    path: charts/demo
+    helm:
+      # 相对 chart 路径 charts/demo 解析到仓库根目录的 gitops/demo/values.yaml。
+      valueFiles:
+        - ../../gitops/demo/values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: demo
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  revisionHistoryLimit: 3

@@ -33,7 +33,7 @@ usage() {
   -h, --help            显示本帮助
 
 示例:
-  scripts/acceptance/app.sh --release demo --namespace observability
+  scripts/acceptance/app.sh --release demo --namespace demo
   scripts/acceptance/app.sh --base-url http://127.0.0.1:18080 --expect-version 0.1.0 --expect-git-sha abc1234
 EOF
 }

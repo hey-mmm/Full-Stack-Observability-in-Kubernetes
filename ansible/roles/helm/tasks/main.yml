@@ -1,0 +1,34 @@
+---
+- name: Ensure versioned Helm directory
+  ansible.builtin.file:
+    path: /opt/helm/v3.22.1
+    state: directory
+    mode: "0755"
+
+- name: Download verified Helm 3.22.1 Linux amd64 archive
+  ansible.builtin.get_url:
+    url: https://get.helm.sh/helm-v3.22.1-linux-amd64.tar.gz
+    dest: /opt/helm/helm-v3.22.1-linux-amd64.tar.gz
+    checksum: sha256:896cf63684a42a723d61c980369d6e588330927deb13676ca0d85006dd6da0ea
+    mode: "0644"
+    timeout: 60
+
+- name: Extract the pinned Helm release
+  ansible.builtin.unarchive:
+    src: /opt/helm/helm-v3.22.1-linux-amd64.tar.gz
+    dest: /opt/helm/v3.22.1
+    remote_src: true
+    creates: /opt/helm/v3.22.1/linux-amd64/helm
+
+- name: Activate pinned Helm binary
+  ansible.builtin.file:
+    src: /opt/helm/v3.22.1/linux-amd64/helm
+    dest: /usr/local/bin/helm
+    state: link
+
+- name: Verify Helm version
+  ansible.builtin.command:
+    argv: [helm, version, --short]
+  register: helm_installed
+  changed_when: false
+  failed_when: not helm_installed.stdout.startswith('v3.22.1+')

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: alert-receiver-data
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: alert-receiver
+    app.kubernetes.io/part-of: observability
+spec:
+  storageClassName: local-path
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

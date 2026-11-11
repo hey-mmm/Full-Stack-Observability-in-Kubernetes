@@ -1,0 +1,204 @@
+crds:
+  enabled: true
+kubeStateMetrics:
+  enabled: true
+nodeExporter:
+  enabled: true
+prometheusOperator:
+  enabled: true
+  image:
+    registry: quay.io
+    repository: prometheus-operator/prometheus-operator
+    tag: v0.95.2
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  admissionWebhooks:
+    enabled: false
+kube-state-metrics:
+  image:
+    registry: registry.k8s.io
+    repository: kube-state-metrics/kube-state-metrics
+    tag: v2.20.0
+  replicas: 1
+  resources:
+    requests:
+      cpu: 30m
+      memory: 64Mi
+    limits:
+      cpu: 150m
+      memory: 192Mi
+  tolerations: []
+prometheus-node-exporter:
+  image:
+    registry: quay.io
+    repository: prometheus/node-exporter
+    tag: v1.12.1
+    distroless: true
+  tolerations:
+  - operator: Exists
+  resources:
+    requests:
+      cpu: 30m
+      memory: 32Mi
+    limits:
+      cpu: 150m
+      memory: 128Mi
+prometheus:
+  enabled: true
+  service:
+    type: ClusterIP
+    port: 9090
+  prometheusSpec:
+    image:
+      repository: prometheus/prometheus
+      tag: v3.16.0-distroless
+      registry: quay.io
+    replicas: 1
+    retention: 7d
+    retentionSize: 8GB
+    scrapeInterval: 30s
+    evaluationInterval: 30s
+    externalLabels:
+      cluster: lab
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: '1'
+        memory: 2Gi
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes:
+          - ReadWriteOnce
+          resources:
+            requests:
+              storage: 10Gi
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    serviceMonitorNamespaceSelector: {}
+    podMonitorNamespaceSelector: {}
+    ruleNamespaceSelector: {}
+alertmanager:
+  enabled: true
+  service:
+    type: ClusterIP
+    port: 9093
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      receiver: lab-json-webhook
+      group_by:
+      - alertname
+      - namespace
+      - pod
+      group_wait: 10s
+      group_interval: 1m
+      repeat_interval: 1h
+    receivers:
+    - name: lab-json-webhook
+      webhook_configs:
+      - url: http://alert-receiver.monitoring.svc.cluster.local:8080/alerts
+        send_resolved: true
+        max_alerts: 0
+  alertmanagerSpec:
+    image:
+      repository: prometheus/alertmanager
+      tag: v0.35.0
+      registry: quay.io
+    replicas: 1
+    retention: 72h
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes:
+          - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
+grafana:
+  enabled: true
+  image:
+    registry: docker.io
+    repository: grafana/grafana
+    tag: 13.3.1-distroless
+  replicas: 1
+  adminUser: admin
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 512Mi
+  persistence:
+    enabled: true
+    type: pvc
+    storageClassName: local-path
+    accessModes:
+    - ReadWriteOnce
+    size: 2Gi
+  initChownData:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 16Mi
+      limits:
+        cpu: 50m
+        memory: 64Mi
+  downloadDashboards:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 16Mi
+      limits:
+        cpu: 50m
+        memory: 64Mi
+  sidecar:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 50m
+        memory: 64Mi
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: '1'
+      searchNamespace: ALL
+    datasources:
+      enabled: true
+      defaultDatasourceEnabled: true
+  additionalDataSources:
+  - name: Loki
+    uid: loki
+    type: loki
+    access: proxy
+    url: http://loki.logging.svc.cluster.local:3100
+    isDefault: false
+    jsonData:
+      maxLines: 1000
+      timeout: 60
+  defaultDashboardsEnabled: true

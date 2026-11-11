@@ -1,0 +1,79 @@
+---
+# Platform stage 3/4 configuration. Kept separate from group_vars so the
+# existing Stage 1 variables and playbook remain untouched.
+# Versions are pinned from upstream chart indexes / release assets checked on
+# 2026-11-11. See docs/observability.md for source URLs and compatibility notes.
+
+platform_local_path_version: "v0.0.37"
+platform_local_path_manifest_url: >-
+  https://raw.githubusercontent.com/rancher/local-path-provisioner/{{ platform_local_path_version }}/deploy/local-path-storage.yaml
+platform_local_path_manifest_sha256: "9781b39c24f3f651bd6d6e41b561e04e4904bbdb6d4f8c7a6009df3a702dcd65"
+platform_local_path_namespace: local-path-storage
+platform_local_path_storage_class: local-path
+platform_local_path_manifest_dir: /opt/local-path
+platform_local_path_manifest_path: "{{ platform_local_path_manifest_dir }}/local-path-storage-{{ platform_local_path_version }}.yaml"
+
+platform_monitoring_namespace: monitoring
+platform_logging_namespace: logging
+platform_demo_namespace: demo
+
+platform_kube_prometheus_release: monitoring
+platform_kube_prometheus_chart_repo: prometheus-community
+platform_kube_prometheus_chart_ref: prometheus-community/kube-prometheus-stack
+platform_kube_prometheus_chart_version: "93.2.0"
+platform_kube_prometheus_app_version: "v0.95.2"
+platform_prometheus_image_tag: "v3.16.0-distroless"
+platform_alertmanager_image_tag: "v0.35.0"
+platform_prometheus_operator_image_tag: "v0.95.2"
+platform_node_exporter_image_tag: "v1.12.1"
+platform_ksm_image_tag: "v2.20.0"
+platform_grafana_image_tag: "13.3.1-distroless"
+
+platform_loki_release: loki
+platform_loki_chart_repo: grafana-community
+platform_loki_chart_ref: grafana-community/loki
+platform_loki_chart_version: "21.2.1"
+platform_loki_app_version: "3.7.9"
+platform_loki_image_tag: "3.7.9"
+
+platform_alloy_release: alloy
+platform_alloy_chart_repo: grafana
+platform_alloy_chart_ref: grafana/alloy
+platform_alloy_chart_version: "1.15.0"
+platform_alloy_app_version: "v1.21.3"
+platform_alloy_image_tag: "v1.21.3"
+
+# The local-path provisioner's official manifest does not include resources.
+# These are added as a separate, idempotent patch after the checksum-verified
+# upstream manifest is applied.
+platform_local_path_resources:
+  requests:
+    cpu: "20m"
+    memory: "32Mi"
+  limits:
+    cpu: "100m"
+    memory: "128Mi"
+
+platform_prometheus_retention: "7d"
+platform_prometheus_retention_size: "8GB"
+platform_prometheus_pvc_size: "10Gi"
+platform_alertmanager_pvc_size: "1Gi"
+platform_grafana_pvc_size: "2Gi"
+platform_loki_retention: "72h"
+platform_loki_pvc_size: "10Gi"
+platform_alert_receiver_pvc_size: "1Gi"
+
+platform_config_dir: /root/.config/kube-observability
+platform_grafana_password_file: "{{ platform_config_dir }}/grafana-admin-password"
+platform_grafana_admin_user: admin
+platform_grafana_secret_name: grafana-admin
+platform_alert_receiver_service: alert-receiver
+platform_alert_receiver_port: 8080
+
+platform_kube_prometheus_values_remote: "{{ platform_config_dir }}/values/kube-prometheus-stack.yaml"
+platform_loki_values_remote: "{{ platform_config_dir }}/values/loki.yaml"
+platform_alloy_values_remote: "{{ platform_config_dir }}/values/alloy.yaml"
+
+platform_prometheus_service: "{{ platform_kube_prometheus_release }}-kube-prometheus-prometheus"
+platform_alertmanager_service: "{{ platform_kube_prometheus_release }}-kube-prometheus-alertmanager"
+platform_grafana_service: "{{ platform_kube_prometheus_release }}-grafana"

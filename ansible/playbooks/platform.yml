@@ -1,0 +1,14 @@
+- name: Stage 3/4 - Kubernetes observability platform
+  hosts: kube_control_plane
+  become: true
+  gather_facts: false
+  vars_files:
+  - ../group_vars/all.yml
+  environment:
+    KUBECONFIG: '{{ kubeconfig_path }}'
+  roles:
+  - role: helm
+    tags: [always]
+  - role: platform
+  vars:
+    ansible_python_interpreter: /home/myt/.venvs/ansible/bin/python

@@ -2,6 +2,10 @@
 # 固定 Python 3.13 补丁版本（3.13 仍在安全支持期），不使用 latest。
 FROM python:3.13.9-slim-bookworm
 
+ARG APP_VERSION=dev
+ARG GIT_SHA=unknown
+ENV APP_VERSION=${APP_VERSION} GIT_SHA=${GIT_SHA}
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \

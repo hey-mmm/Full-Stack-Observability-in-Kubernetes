@@ -2,12 +2,12 @@
 - name: Assert supported Ubuntu 22.04 host
   ansible.builtin.assert:
     that:
-      - ansible_distribution == "Ubuntu"
-      - ansible_distribution_version is version("22.04", ">=")
-      - ansible_distribution_version is version("22.10", "<")
+      - ansible_facts['distribution'] == "Ubuntu"
+      - ansible_facts['distribution_version'] is version("22.04", ">=")
+      - ansible_facts['distribution_version'] is version("22.10", "<")
     fail_msg: >-
       This playbook supports Ubuntu 22.04.x only; detected
-      {{ ansible_distribution }} {{ ansible_distribution_version }}.
+      {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}.
     success_msg: "Ubuntu 22.04.x detected."
 
 - name: Install base packages
@@ -25,9 +25,9 @@
 - name: Refuse to rename a node that may already belong to a cluster
   ansible.builtin.assert:
     that:
-      - not existing_kubelet_conf.stat.exists or ansible_hostname == common_hostname
+      - not existing_kubelet_conf.stat.exists or ansible_facts['hostname'] == common_hostname
     fail_msg: >-
-      The host is named {{ ansible_hostname }} but inventory requires
+      The host is named {{ ansible_facts['hostname'] }} but inventory requires
       {{ common_hostname }}, and /etc/kubernetes/kubelet.conf exists. Refusing
       to rename an enrolled node. Clean the legacy cluster deliberately or
       align the inventory with the existing hostname.
@@ -84,7 +84,7 @@
     argv:
       - swapoff
       - -a
-  when: ansible_swaptotal_mb | int > 0
+  when: ansible_facts['swaptotal_mb'] | int > 0
 
 - name: Disable swap entries in /etc/fstab
   ansible.builtin.replace:

@@ -65,4 +65,5 @@ Thumbs.db
 .tmp-versions/
 work/
 *.tar.gz
+scripts/drills/.state/
 

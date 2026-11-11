@@ -1,0 +1,188 @@
+- name: Require local-path before installing monitoring
+  ansible.builtin.command:
+    argv:
+    - kubectl
+    - --kubeconfig
+    - '{{ kubeconfig_path }}'
+    - --request-timeout=15s
+    - get
+    - storageclass
+    - '{{ platform_local_path_storage_class }}'
+  register: platform_metrics_storage_check
+  changed_when: false
+  failed_when: false
+- name: Explain that storage must be accepted first
+  ansible.builtin.assert:
+    that:
+    - platform_metrics_storage_check.rc == 0
+    fail_msg: StorageClass {{ platform_local_path_storage_class }} is absent. Run 'ansible-playbook playbooks/platform.yml
+      --tags storage' and its acceptance check before --tags metrics.
+- name: Ensure monitoring namespace
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: '{{ platform_monitoring_namespace }}'
+        labels:
+          app.kubernetes.io/part-of: observability
+          environment: lab
+- name: Ensure root-only platform configuration directory
+  ansible.builtin.file:
+    path: '{{ platform_config_dir }}'
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+- name: Ensure values directory
+  ansible.builtin.file:
+    path: '{{ platform_kube_prometheus_values_remote | dirname }}'
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+- name: Generate Grafana admin password once on the master
+  ansible.builtin.shell:
+    cmd: "set -eu\numask 077\nif [ ! -s \"{{ platform_grafana_password_file }}\" ]; then\n  printf '%s' \"$(openssl rand -base64\
+      \ 32)\" > \"{{ platform_grafana_password_file }}\"\nfi\n"
+    creates: '{{ platform_grafana_password_file }}'
+  args:
+    executable: /bin/bash
+  no_log: true
+- name: Enforce root-only permissions on the Grafana password file
+  ansible.builtin.file:
+    path: '{{ platform_grafana_password_file }}'
+    state: file
+    owner: root
+    group: root
+    mode: '0600'
+- name: Read generated Grafana admin password
+  ansible.builtin.slurp:
+    src: '{{ platform_grafana_password_file }}'
+  register: platform_grafana_password_slurp
+  no_log: true
+- name: Set Grafana admin password fact without logging it
+  ansible.builtin.set_fact:
+    platform_grafana_admin_password: '{{ (platform_grafana_password_slurp.content | b64decode).strip() }}'
+  no_log: true
+- name: Assert the generated password is not empty
+  ansible.builtin.assert:
+    that:
+    - platform_grafana_admin_password | length >= 32
+    fail_msg: Generated Grafana password is too short; refusing to install.
+  no_log: true
+- name: Store the Grafana admin credential in a Kubernetes Secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: '{{ platform_grafana_secret_name }}'
+        namespace: '{{ platform_monitoring_namespace }}'
+        labels:
+          app.kubernetes.io/part-of: observability
+      type: Opaque
+      stringData:
+        admin-user: '{{ platform_grafana_admin_user }}'
+        admin-password: '{{ platform_grafana_admin_password }}'
+  no_log: true
+- name: Apply the local JSON alert receiver (PVC, ConfigMap, Deployment, Service)
+  ansible.builtin.command:
+    argv:
+    - kubectl
+    - --kubeconfig
+    - '{{ kubeconfig_path }}'
+    - --request-timeout=30s
+    - apply
+    - -f
+    - '{{ role_path }}/../../../platform/alert-receiver'
+  register: platform_alert_receiver_apply
+  changed_when: ''' created'' in platform_alert_receiver_apply.stdout or '' configured'' in platform_alert_receiver_apply.stdout'
+- name: Wait for the alert receiver rollout
+  ansible.builtin.command:
+    argv:
+    - timeout
+    - '240'
+    - kubectl
+    - --kubeconfig
+    - '{{ kubeconfig_path }}'
+    - --request-timeout=15s
+    - -n
+    - '{{ platform_monitoring_namespace }}'
+    - rollout
+    - status
+    - deployment/alert-receiver
+    - --timeout=180s
+  changed_when: false
+- name: Copy pinned kube-prometheus-stack values to the master
+  ansible.builtin.copy:
+    src: '{{ role_path }}/files/values/kube-prometheus-stack.yaml'
+    dest: '{{ platform_kube_prometheus_values_remote }}'
+    owner: root
+    group: root
+    mode: '0600'
+- name: Add the prometheus-community Helm repository
+  kubernetes.core.helm_repository:
+    name: '{{ platform_kube_prometheus_chart_repo }}'
+    repo_url: https://prometheus-community.github.io/helm-charts
+    force_update: false
+- name: Deploy kube-prometheus-stack 93.2.0 and wait for readiness
+  kubernetes.core.helm:
+    name: '{{ platform_kube_prometheus_release }}'
+    chart_ref: '{{ platform_kube_prometheus_chart_ref }}'
+    chart_version: '{{ platform_kube_prometheus_chart_version }}'
+    release_namespace: '{{ platform_monitoring_namespace }}'
+    create_namespace: false
+    values_files:
+    - '{{ platform_kube_prometheus_values_remote }}'
+    wait: true
+    timeout: 20m
+- name: Apply the demo PrometheusRule (1m drill alerts and 7d SLI records)
+  ansible.builtin.command:
+    argv:
+    - kubectl
+    - --kubeconfig
+    - '{{ kubeconfig_path }}'
+    - --request-timeout=30s
+    - apply
+    - -f
+    - '{{ role_path }}/../../../platform/monitoring/prometheus-rules-demo.yaml'
+  register: platform_demo_rules_apply
+  changed_when: ''' created'' in platform_demo_rules_apply.stdout or '' configured'' in platform_demo_rules_apply.stdout'
+- name: Validate the dashboard JSON before creating its ConfigMap
+  ansible.builtin.command:
+    argv:
+    - python3
+    - -m
+    - json.tool
+    - '{{ role_path }}/../../../platform/monitoring/dashboards/demo-observability.json'
+  changed_when: false
+- name: Create or update the demo dashboard ConfigMap
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: demo-observability-dashboard
+        namespace: '{{ platform_monitoring_namespace }}'
+        labels:
+          grafana_dashboard: '1'
+          app.kubernetes.io/part-of: observability
+      data:
+        demo-observability.json: '{{ lookup(''ansible.builtin.file'', role_path ~ ''/../../../platform/monitoring/dashboards/demo-observability.json'')
+          }}'
+- name: Show monitoring install summary without credentials
+  ansible.builtin.debug:
+    msg:
+    - 'kube-prometheus-stack chart: {{ platform_kube_prometheus_chart_version }} (app {{ platform_kube_prometheus_app_version
+      }})'
+    - 'Prometheus retention: {{ platform_prometheus_retention }} / {{ platform_prometheus_retention_size }}, PVC {{ platform_prometheus_pvc_size
+      }}'
+    - 'Grafana deployment: {{ platform_grafana_service }}; admin password file: {{ platform_grafana_password_file }} (root
+      0600)'
+    - 'Alertmanager webhook receiver: http://{{ platform_alert_receiver_service }}.{{ platform_monitoring_namespace }}.svc:{{
+      platform_alert_receiver_port }}/alerts (send_resolved=true)'
+    - Run scripts/acceptance/observability.sh --phase metrics after the real alert drill.

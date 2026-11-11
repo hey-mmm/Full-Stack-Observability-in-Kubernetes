@@ -16,25 +16,28 @@
 
 ## 2. 安装受支持的 Ansible 控制端
 
-Ubuntu 22.04 的 Python 3.10 不能运行当前支持的 ansible-core 组合。在 master 上使用 uv 建立独立解释器：
+Ubuntu 22.04 的 Python 3.10 不能运行当前支持的 ansible-core 组合。master 已提供固定 uv `0.13.7`，不要覆盖系统 Python：
 
 ```bash
 cd Full-Stack-Observability-in-Kubernetes
 
-# 记录 uv 版本，便于复现
-curl -LsSf https://astral.sh/uv/install.sh | sh
-export PATH="$HOME/.local/bin:$PATH"
-uv --version
+UV_BIN=/opt/observability-bootstrap/bin/uv
+"$UV_BIN" --version   # 必须为 uv 0.13.7
 
-uv python install 3.12.9
-uv venv "$HOME/.venvs/ansible" --python 3.12.9
-uv pip install --python "$HOME/.venvs/ansible/bin/python" -r ansible/requirements.txt
+"$UV_BIN" python install 3.12.9
+"$UV_BIN" venv "$HOME/.venvs/ansible" --python 3.12.9
+"$UV_BIN" pip install \
+  --python "$HOME/.venvs/ansible/bin/python" \
+  -r ansible/requirements.txt \
+  kubernetes==33.1.0 jsonpatch==1.33 PyYAML==6.0.3
 $HOME/.venvs/ansible/bin/ansible-galaxy collection install \
   -r ansible/requirements.yml -p ansible/collections
 
 $HOME/.venvs/ansible/bin/ansible --version
 $HOME/.venvs/ansible/bin/ansible-galaxy collection list
 ```
+
+Python SDK 固定为 `kubernetes 33.1.0`、`jsonpatch 1.33`、`PyYAML 6.0.3`；不修改系统 Python。
 
 固定版本：
 

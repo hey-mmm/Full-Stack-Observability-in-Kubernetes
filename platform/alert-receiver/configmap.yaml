@@ -1,0 +1,200 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alert-receiver-script
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: alert-receiver
+    app.kubernetes.io/component: webhook-receiver
+    app.kubernetes.io/part-of: observability
+data:
+  receiver.py: |
+    #!/usr/bin/env python3
+    """Small Alertmanager webhook receiver for the lab.
+
+    Standard-library only: no image build and no external chat/mail dependency.
+    It appends one JSON object per Alertmanager alert to a PVC-backed JSONL
+    file and exposes the latest events over HTTP for acceptance evidence.
+    This is a demo receiver, not a production notification service.
+    """
+
+    from __future__ import annotations
+
+    import json
+    import os
+    import threading
+    from datetime import datetime, timezone
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from pathlib import Path
+    from urllib.parse import parse_qs, urlparse
+
+    STORE = Path(os.environ.get("ALERT_STORE", "/data/alerts.jsonl"))
+    PORT = int(os.environ.get("PORT", "8080"))
+    MAX_BODY_BYTES = int(os.environ.get("MAX_BODY_BYTES", "1048576"))
+    LOCK = threading.Lock()
+    MAX_QUERY = 500
+
+
+    def utc_now() -> str:
+        return (
+            datetime.now(timezone.utc)
+            .isoformat(timespec="milliseconds")
+            .replace("+00:00", "Z")
+        )
+
+
+    def append_payload(payload: dict) -> list[dict]:
+        alerts = payload.get("alerts")
+        if not isinstance(alerts, list):
+            raise ValueError("payload.alerts must be a list")
+
+        received_at = utc_now()
+        events: list[dict] = []
+        for alert in alerts:
+            if not isinstance(alert, dict):
+                continue
+            events.append(
+                {
+                    "received_at": received_at,
+                    "receiver": "local-json-webhook",
+                    "groupKey": payload.get("groupKey"),
+                    "truncatedAlerts": payload.get("truncatedAlerts", 0),
+                    "alert": alert,
+                }
+            )
+
+        STORE.parent.mkdir(parents=True, exist_ok=True)
+        with LOCK:
+            with STORE.open("a", encoding="utf-8") as handle:
+                for event in events:
+                    handle.write(
+                        json.dumps(event, ensure_ascii=False, separators=(",", ":"))
+                        + "\n"
+                    )
+                handle.flush()
+                os.fsync(handle.fileno())
+        return events
+
+
+    def read_events(limit: int) -> list[dict]:
+        if not STORE.exists():
+            return []
+        limit = max(1, min(limit, MAX_QUERY))
+        with LOCK:
+            lines = STORE.read_text(encoding="utf-8", errors="replace").splitlines()
+        result: list[dict] = []
+        for line in lines[-limit:]:
+            try:
+                result.append(json.loads(line))
+            except json.JSONDecodeError:
+                result.append({"parse_error": True, "raw": line})
+        return result
+
+
+    class Handler(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+        server_version = "lab-alert-receiver/1"
+
+        def _send(self, status: int, payload: dict) -> None:
+            body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def do_GET(self) -> None:  # noqa: N802 - stdlib API
+            parsed = urlparse(self.path)
+            if parsed.path == "/healthz":
+                self._send(
+                    200,
+                    {
+                        "status": "ok",
+                        "store": str(STORE),
+                        "utc": utc_now(),
+                    },
+                )
+                return
+            if parsed.path in {"/alerts", "/events"}:
+                query = parse_qs(parsed.query)
+                try:
+                    limit = int(query.get("limit", ["50"])[0])
+                except ValueError:
+                    limit = 50
+                events = read_events(limit)
+                self._send(200, {"count": len(events), "events": events})
+                return
+            self._send(
+                200,
+                {
+                    "service": "alert-receiver",
+                    "endpoints": {
+                        "GET /healthz": "health",
+                        "GET /alerts?limit=50": "latest persisted events",
+                        "POST /alerts": "Alertmanager webhook endpoint",
+                    },
+                },
+            )
+
+        def do_POST(self) -> None:  # noqa: N802 - stdlib API
+            if urlparse(self.path).path != "/alerts":
+                self._send(404, {"error": "not found"})
+                return
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+            except ValueError:
+                length = 0
+            if length <= 0 or length > MAX_BODY_BYTES:
+                self._send(413, {"error": "invalid or oversized request body"})
+                return
+            raw = self.rfile.read(length)
+            try:
+                payload = json.loads(raw)
+                if not isinstance(payload, dict):
+                    raise ValueError("payload must be an object")
+                events = append_payload(payload)
+            except (ValueError, json.JSONDecodeError) as exc:
+                self._send(400, {"error": str(exc)})
+                return
+            except OSError as exc:
+                self._send(500, {"error": f"failed to persist alert: {exc}"})
+                return
+            self._send(
+                200,
+                {
+                    "status": "stored",
+                    "received_at": utc_now(),
+                    "stored_count": len(events),
+                },
+            )
+
+        def log_message(self, fmt: str, *args: object) -> None:
+            # Keep the container log useful without dumping alert bodies.
+            print(
+                json.dumps(
+                    {
+                        "timestamp": utc_now(),
+                        "client": self.client_address[0],
+                        "message": fmt % args,
+                    },
+                    ensure_ascii=False,
+                ),
+                flush=True,
+            )
+
+
+    def main() -> None:
+        STORE.parent.mkdir(parents=True, exist_ok=True)
+        server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
+        print(
+            json.dumps(
+                {"timestamp": utc_now(), "event": "receiver_started", "port": PORT},
+                ensure_ascii=False,
+            ),
+            flush=True,
+        )
+        server.serve_forever()
+
+
+    if __name__ == "__main__":
+        main()

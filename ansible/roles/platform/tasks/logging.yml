@@ -1,0 +1,120 @@
+---
+- name: Require local-path before installing logging
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ kubeconfig_path }}"
+      - --request-timeout=15s
+      - get
+      - storageclass
+      - "{{ platform_local_path_storage_class }}"
+  register: platform_logging_storage_check
+  changed_when: false
+  failed_when: false
+
+- name: Explain that storage must be accepted first
+  ansible.builtin.assert:
+    that:
+      - platform_logging_storage_check.rc == 0
+    fail_msg: >-
+      StorageClass {{ platform_local_path_storage_class }} is absent.
+      Run --tags storage and its acceptance check before --tags logging.
+
+- name: Ensure logging namespace
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ platform_logging_namespace }}"
+        labels:
+          app.kubernetes.io/part-of: observability
+          environment: lab
+
+- name: Ensure root-only values directory
+  ansible.builtin.file:
+    path: "{{ platform_loki_values_remote | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Copy pinned Loki values to the master
+  ansible.builtin.copy:
+    src: "{{ role_path }}/files/values/loki.yaml"
+    dest: "{{ platform_loki_values_remote }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Copy pinned Alloy values to the master
+  ansible.builtin.copy:
+    src: "{{ role_path }}/files/values/alloy.yaml"
+    dest: "{{ platform_alloy_values_remote }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Add the grafana-community Helm repository for Loki
+  kubernetes.core.helm_repository:
+    name: "{{ platform_loki_chart_repo }}"
+    repo_url: https://grafana-community.github.io/helm-charts
+    force_update: false
+
+- name: Add the grafana Helm repository for Alloy
+  kubernetes.core.helm_repository:
+    name: "{{ platform_alloy_chart_repo }}"
+    repo_url: https://grafana.github.io/helm-charts
+    force_update: false
+
+- name: Deploy Loki 21.2.1 monolithic single-binary and wait for readiness
+  kubernetes.core.helm:
+    name: "{{ platform_loki_release }}"
+    chart_ref: "{{ platform_loki_chart_ref }}"
+    chart_version: "{{ platform_loki_chart_version }}"
+    release_namespace: "{{ platform_logging_namespace }}"
+    create_namespace: false
+    values_files:
+      - "{{ platform_loki_values_remote }}"
+    wait: true
+    timeout: "20m"
+
+- name: Deploy Alloy 1.15.0 log collector DaemonSet and wait for readiness
+  kubernetes.core.helm:
+    name: "{{ platform_alloy_release }}"
+    chart_ref: "{{ platform_alloy_chart_ref }}"
+    chart_version: "{{ platform_alloy_chart_version }}"
+    release_namespace: "{{ platform_logging_namespace }}"
+    create_namespace: false
+    values_files:
+      - "{{ platform_alloy_values_remote }}"
+    wait: true
+    timeout: "10m"
+
+- name: Wait for Alloy DaemonSet on both nodes
+  ansible.builtin.command:
+    argv:
+      - timeout
+      - "300"
+      - kubectl
+      - --kubeconfig
+      - "{{ kubeconfig_path }}"
+      - --request-timeout=15s
+      - -n
+      - "{{ platform_logging_namespace }}"
+      - rollout
+      - status
+      - daemonset/alloy
+      - --timeout=240s
+  changed_when: false
+
+- name: Show logging install summary
+  ansible.builtin.debug:
+    msg:
+      - "Loki chart: {{ platform_loki_chart_version }} (app {{ platform_loki_app_version }}), Monolithic/singleBinary"
+      - "Loki retention: {{ platform_loki_retention }} with compactor retention_enabled=true and delete_request_store=filesystem"
+      - "Loki service for Grafana: http://loki.{{ platform_logging_namespace }}.svc.cluster.local:3100"
+      - "Alloy chart: {{ platform_alloy_chart_version }} (app {{ platform_alloy_app_version }}), DaemonSet tolerates control-plane NoSchedule"
+      - "Run scripts/acceptance/observability.sh --phase logging."

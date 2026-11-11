@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: demo
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: observability-demo
+spec:
+  description: "Only the demo workload (namespace demo); no cluster-scoped resources."
+  # 只允许这个仓库作为 source；不允许其它仓库借 project 部署。
+  sourceRepos:
+    - https://github.com/hey-mmm/Full-Stack-Observability-in-Kubernetes.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: demo
+  # 禁止 Namespace/CRD/ClusterRole 等所有 cluster-scoped 资源。
+  clusterResourceWhitelist: []
+  # 仅允许 demo chart 实际产生的 namespace-scoped 类型。
+  namespaceResourceWhitelist:
+    - group: apps
+      kind: Deployment
+    - group: ""
+      kind: Service
+    - group: monitoring.coreos.com
+      kind: ServiceMonitor
+  orphanedResources:
+    warn: true

@@ -119,14 +119,14 @@
   delay: 5
   until: >-
     containerd_plugins.rc == 0 and
-    'io.containerd.cri.v1.runtime' in containerd_plugins.stdout and
-    'io.containerd.cri.v1.images' in containerd_plugins.stdout
+    containerd_plugins.stdout is search('(?m)^io[.]containerd[.]cri[.]v1 +runtime +.* +ok *$') and
+    containerd_plugins.stdout is search('(?m)^io[.]containerd[.]cri[.]v1 +images +.* +ok *$')
 
 - name: Assert CRI runtime and image plugins are loaded
   ansible.builtin.assert:
     that:
-      - "'io.containerd.cri.v1.runtime' in containerd_plugins.stdout"
-      - "'io.containerd.cri.v1.images' in containerd_plugins.stdout"
+      - "containerd_plugins.stdout is search('(?m)^io[.]containerd[.]cri[.]v1 +runtime +.* +ok *$')"
+      - "containerd_plugins.stdout is search('(?m)^io[.]containerd[.]cri[.]v1 +images +.* +ok *$')"
     fail_msg: >-
       containerd is running but the CRI runtime/image plugins are not loaded.
       Inspect journalctl -u containerd and the rendered config.

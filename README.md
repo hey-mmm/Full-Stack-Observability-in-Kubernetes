@@ -2,7 +2,7 @@
 
 本项目在 VMware Workstation 中的 Ubuntu 22.04.5 虚拟机上，以 1 master + 1 worker 构建可重复、可验收的 Kubernetes 可观测性实验平台。项目强调真实测量、可解释的自动化、故障演练与恢复证据，不以“脚本执行成功”代替验收。
 
-> **当前状态：阶段 1 代码已编写，尚未在目标 VM 上执行，未部署、未验收、未 push。**
+> **当前状态：首批代码已推送至 GitHub；虚拟机资源、固定 IP 和旧集群清理已完成，Ansible 正在实际建立集群。示例服务的 8 项源码测试通过，demo/监控/Loki/Alloy Chart 已做本地渲染；集群及平台最终验收尚未完成。**
 >
 > 仓库中不存在“已部署”或“已通过”的结论。所有阶段验收结果必须在目标环境实际执行后另行记录。
 
@@ -20,12 +20,12 @@
 
 | 阶段 | 内容 | 当前状态 |
 | --- | --- | --- |
-| 1 | 集群底座：两节点 Ready，DNS、网络、服务正常，重复执行不破坏集群 | **代码已编写，未部署、未验收** |
-| 2 | 示例服务：接口、健康检查、指标、JSON 日志、版本与持续流量 | 未开始 |
-| 3 | 指标与告警：主机/Pod/应用指标可查询，异常与恢复有真实通知证据 | 未开始 |
-| 4 | 日志与持久化：两节点日志可查，Prometheus/Loki Pod 重建后数据仍可查 | 未开始 |
-| 5 | 稳定性：500、慢请求、启动失败、监控/日志 Pod 重建的故障与恢复 | 未开始 |
-| 6 | CI/CD 与 GitOps：Actions 构建发布，ArgoCD 发布并由 Git 恢复回滚 | 未开始 |
+| 1 | 集群底座：两节点 Ready，DNS、网络、服务正常，重复执行不破坏集群 | **实际安装中，尚未通过集群验收** |
+| 2 | 示例服务：接口、健康检查、指标、JSON 日志、版本与持续流量 | 源码 8 项测试通过；Chart 校验通过；镜像/集群验收待执行 |
+| 3 | 指标与告警：主机/Pod/应用指标可查询，异常与恢复有真实通知证据 | 配置已编写并渲染，未部署 |
+| 4 | 日志与持久化：两节点日志可查，Prometheus/Loki Pod 重建后数据仍可查 | 配置已编写并渲染，未部署/未验收持久化 |
+| 5 | 稳定性：500、慢请求、启动失败、监控/日志 Pod 重建的故障与恢复 | 演练脚本已准备，未进行集群演练 |
+| 6 | CI/CD 与 GitOps：Actions 构建发布，ArgoCD 发布并由 Git 恢复回滚 | 流水线/GitOps 配置已准备，运行验收待执行 |
 
 阶段必须按顺序验收；提前编写后续阶段代码不代表该阶段已通过。仓库中可能同时存在并行准备的后续阶段草稿，其状态仍以实际阶段验收记录为准。
 
@@ -86,7 +86,7 @@ Calico `v3.33.0` 官方 `manifests/calico.yaml` 的 sha256 为
 
 ## 快速入口
 
-阶段 1 尚不可宣称成功。实际执行步骤见 [docs/stage1-runbook.md](docs/stage1-runbook.md)，总体设计与阶段划分见 [docs/plan.md](docs/plan.md)。
+实际执行步骤见 [docs/stage1-runbook.md](docs/stage1-runbook.md)，总体设计见 [docs/plan.md](docs/plan.md)，已执行操作与未验证项见 [docs/implementation-journal.md](docs/implementation-journal.md)。平台、示例与 GitOps 的入口分别见 [观测平台](docs/observability.md)、[示例服务](docs/demo-service.md)、[发布](docs/gitops.md) 和 [演练](docs/drills.md)。
 
 ## 安全约定
 

@@ -1,0 +1,21 @@
+---
+# Run one stage at a time:
+#   --tags storage   local-path only
+#   --tags metrics   kube-prometheus-stack + demo rules/dashboard + alert receiver
+#   --tags logging   Loki monolithic + Alloy DaemonSet
+# The preflight check always runs. No tag removes or restarts existing data.
+- import_tasks: preflight.yml
+  tags:
+    - always
+
+- import_tasks: storage.yml
+  tags:
+    - storage
+
+- import_tasks: metrics.yml
+  tags:
+    - metrics
+
+- import_tasks: logging.yml
+  tags:
+    - logging

@@ -1,0 +1,29 @@
+name: Setup Helm 3 (pinned checksum)
+description: Download a pinned Helm 3 linux-amd64 release, verify SHA256, and install it.
+
+inputs:
+  version:
+    description: Helm version including leading v (for example v3.22.1)
+    required: true
+  sha256:
+    description: Official SHA256 of helm-<version>-linux-amd64.tar.gz
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Download, verify, install Helm
+      shell: bash
+      env:
+        HELM_VERSION: ${{ inputs.version }}
+        HELM_SHA256: ${{ inputs.sha256 }}
+      run: |
+        set -euo pipefail
+        archive="${RUNNER_TEMP}/helm-${HELM_VERSION}-linux-amd64.tar.gz"
+        curl --fail --silent --show-error --location --retry 3 --retry-delay 2 \
+          --output "$archive" \
+          "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz"
+        printf '%s  %s\n' "$HELM_SHA256" "$archive" | sha256sum --check --strict
+        tar -xzf "$archive" -C "$RUNNER_TEMP"
+        sudo install -m 0755 "${RUNNER_TEMP}/linux-amd64/helm" /usr/local/bin/helm
+        helm version --short

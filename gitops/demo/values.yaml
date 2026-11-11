@@ -1,0 +1,35 @@
+# Argo CD 管理的 demo 唯一 desired state。
+# 该文件是 GitOps 的唯一镜像注入点；CI 不自动提交、不自动 push 这里。
+# 构建成功后必须由人工/主代理把下面的占位替换为 CI 实际产物，再 git commit。
+#
+# 当前 charts/demo 只支持 image.repository + image.tag，不支持 image.digest：
+#   - 必须替换为 CI 实际产出的不可变 `sha-<完整40位commit>`；
+#   - 禁止 latest、分支名或可移动 tag；
+#   - chart owner 增加 digest 支持后，应优先使用 `@sha256:<digest>` 并删除 tag 占位。
+image:
+  repository: ghcr.io/hey-mmm/observability-demo
+  tag: "sha-REPLACE_WITH_ACTUAL_IMMUTABLE_TAG"
+  pullPolicy: IfNotPresent
+
+# Helm release 名为 demo 且 fullnameOverride=demo，因此 Deployment/Service 都是 demo。
+fullnameOverride: demo
+replicaCount: 1
+
+# 发布可追溯性；与 CI 构建的 GIT_SHA 保持一致。
+appVersion: "0.1.0"
+gitSha: "REPLACE_WITH_ACTUAL_GIT_SHA"
+
+env:
+  APP_ENV: "production"
+  DEMO_ERROR_RATE: "0"
+  DEMO_LATENCY_MS: "0"
+  DEMO_STARTUP_FAIL: "false"
+
+service:
+  port: 8080
+
+# 初始关闭，避免 CRD 尚未安装时 Argo sync 失败。
+# 监控组件就绪并确认 ServiceMonitor CRD/selector 后改为 true 再提交。
+serviceMonitor:
+  enabled: false
+  labels: {}

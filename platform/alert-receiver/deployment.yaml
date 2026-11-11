@@ -1,0 +1,105 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alert-receiver
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: alert-receiver
+    app.kubernetes.io/component: webhook-receiver
+    app.kubernetes.io/part-of: observability
+spec:
+  replicas: 1
+  # RWO local-path PVC: never run two receivers against the same file at once.
+  strategy:
+    type: Recreate
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: alert-receiver
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: alert-receiver
+        app.kubernetes.io/component: webhook-receiver
+        app.kubernetes.io/part-of: observability
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: receiver
+          image: python:3.13.9-slim-bookworm
+          imagePullPolicy: IfNotPresent
+          command:
+            - python
+            - /app/receiver.py
+          env:
+            - name: ALERT_STORE
+              value: /data/alerts.jsonl
+            - name: PORT
+              value: "8080"
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: script
+              mountPath: /app/receiver.py
+              subPath: receiver.py
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: alert-receiver-data
+        - name: script
+          configMap:
+            name: alert-receiver-script
+            defaultMode: 0444
+        - name: tmp
+          emptyDir:
+            sizeLimit: 16Mi

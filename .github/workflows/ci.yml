@@ -1,0 +1,146 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE_REPO: ghcr.io/hey-mmm/observability-demo
+  HELM_VERSION: v3.22.1
+  # Helm v3.22.1 linux-amd64 tar.gz 官方 SHA256（release body 公布）。
+  HELM_SHA256: 896cf63684a42a723d61c980369d6e588330927deb13676ca0d85006dd6da0ea
+
+jobs:
+  test:
+    name: Test, lint, render
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13.9"
+          cache: pip
+          cache-dependency-path: app/requirements-dev.txt
+
+      - name: Install Python dependencies
+        run: python -m pip install --disable-pip-version-check -r app/requirements-dev.txt
+
+      - name: Run unit tests
+        run: python -m unittest discover -s app/tests -v
+
+      - name: Set up Helm 3
+        uses: ./.github/workflows/actions/setup-helm
+        with:
+          version: ${{ env.HELM_VERSION }}
+          sha256: ${{ env.HELM_SHA256 }}
+
+      - name: Helm lint and template
+        shell: bash
+        run: |
+          set -euo pipefail
+          helm version --short
+          helm lint charts/demo
+          helm lint charts/demo -f gitops/demo/values.yaml
+          helm template demo charts/demo -n demo -f gitops/demo/values.yaml > /tmp/demo-rendered.yaml
+          helm template demo charts/demo -n demo -f gitops/demo/values.yaml \
+            --set serviceMonitor.enabled=true > /tmp/demo-monitor-rendered.yaml
+
+          # Chart 安全/暴露面约束的回归检查。
+          if grep -Eq 'nodePort:|hostPath:|kind:[[:space:]]+Ingress|image:.*:latest' /tmp/demo-rendered.yaml; then
+            echo "::error::rendered chart violates NodePort/Ingress/hostPath/latest constraints"
+            exit 1
+          fi
+          grep -q 'kind: ServiceMonitor' /tmp/demo-monitor-rendered.yaml
+
+      - name: Shell syntax check
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in scripts/traffic.sh scripts/acceptance/app.sh scripts/drills/*.sh; do
+            bash -n "$file"
+            echo "bash -n OK: $file"
+          done
+
+  build:
+    name: Build and push image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Enforce build argument contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=0
+          if ! grep -qE '^[[:space:]]*ARG[[:space:]]+APP_VERSION' app/Dockerfile; then
+            echo "::error title=Dockerfile contract::app/Dockerfile must declare ARG APP_VERSION before pushing an image."
+            missing=1
+          fi
+          if ! grep -qE '^[[:space:]]*ARG[[:space:]]+GIT_SHA' app/Dockerfile; then
+            echo "::error title=Dockerfile contract::app/Dockerfile must declare ARG GIT_SHA before pushing an image."
+            missing=1
+          fi
+          if (( missing != 0 )); then
+            echo "Refusing to publish an image whose APP_VERSION/GIT_SHA build args are ignored."
+            exit 1
+          fi
+
+      - name: Log in to GHCR
+        shell: bash
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
+
+      - name: Build and push immutable sha tag
+        shell: bash
+        env:
+          APP_VERSION: "0.1.0-${{ github.sha }}"
+        run: |
+          set -euo pipefail
+          IMAGE="${IMAGE_REPO}:sha-${GITHUB_SHA}"
+          docker build \
+            --file app/Dockerfile \
+            --build-arg "APP_VERSION=${APP_VERSION}" \
+            --build-arg "GIT_SHA=${GITHUB_SHA}" \
+            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            --label "org.opencontainers.image.version=${APP_VERSION}" \
+            --tag "$IMAGE" \
+            .
+          docker push "$IMAGE"
+          DIGEST="$(docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE")"
+          {
+            echo "### Image built"
+            echo ""
+            echo "- tag: \`${IMAGE}\`"
+            echo "- digest: \`${DIGEST}\`"
+            echo "- APP_VERSION: \`${APP_VERSION}\`"
+            echo "- GIT_SHA: \`${GITHUB_SHA}\`"
+            echo ""
+            echo "GitOps 不会自动提交：验证后由人工/主代理把 \`gitops/demo/values.yaml\` 的镜像占位替换为实际不可变 tag/digest。"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,88 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: demo-observability
+  namespace: monitoring
+  labels:
+    release: monitoring
+    app.kubernetes.io/name: demo-observability
+    app.kubernetes.io/part-of: observability
+spec:
+  groups:
+  - name: demo-slo
+    interval: 30s
+    rules:
+    - record: demo:sli_availability:ratio_7d
+      expr: "(\n  1 -\n  (\n    (sum(rate(demo_http_requests_total{namespace=\"demo\",route=\"/work\",status=~\"5..\"}[7d]))\
+        \ or on() vector(0))\n    /\n    sum(rate(demo_http_requests_total{namespace=\"demo\",route=\"/work\"}[7d]))\n  )\n\
+        )\nand on()\n(\n  sum(rate(demo_http_requests_total{namespace=\"demo\",route=\"/work\"}[7d])) > 0\n)\n"
+    - record: demo:http_errors:ratio_5m
+      expr: "(\n  (sum(rate(demo_http_requests_total{namespace=\"demo\",route=\"/work\",status=~\"5..\"}[5m])) or on() vector(0))\n\
+        \  /\n  sum(rate(demo_http_requests_total{namespace=\"demo\",route=\"/work\"}[5m]))\n)\nand on()\n(\n  sum(rate(demo_http_requests_total{namespace=\"\
+        demo\",route=\"/work\"}[5m])) > 0\n)\n"
+    - record: demo:http_requests:rate_5m
+      expr: 'sum(rate(demo_http_requests_total{namespace="demo",route="/work"}[5m]))
+
+        '
+    - record: demo:slo_target:ratio
+      expr: vector(0.999)
+    - record: demo:slo_error_budget:ratio_7d
+      expr: 1 - ((1 - demo:sli_availability:ratio_7d) / (1 - demo:slo_target:ratio))
+  - name: demo-alerts
+    interval: 30s
+    rules:
+    - alert: DemoHighErrorRate
+      expr: "(\n  (sum(rate(demo_http_requests_total{namespace=\"demo\",route=\"/work\",status=~\"5..\"}[1m])) or on() vector(0))\n\
+        \  /\n  sum(rate(demo_http_requests_total{namespace=\"demo\",route=\"/work\"}[1m]))\n) > 0.05\nand on()\n(\n  sum(rate(demo_http_requests_total{namespace=\"\
+        demo\",route=\"/work\"}[1m])) > 0\n)\n"
+      for: 1m
+      labels:
+        severity: warning
+        service: demo
+        drill: 'true'
+      annotations:
+        summary: Demo /work 5xx error ratio is above 5%
+        description: The 1-minute 5xx ratio for route /work has exceeded 5% for 1 minute. Check the demo Deployment and the
+          request_id in Loki before changing anything.
+    - alert: DemoP95LatencyHigh
+      expr: "histogram_quantile(\n  0.95,\n  sum by (le) (\n    rate(demo_http_request_duration_seconds_bucket{namespace=\"\
+        demo\",route=\"/work\"}[1m])\n  )\n) > 0.5\n"
+      for: 1m
+      labels:
+        severity: warning
+        service: demo
+        drill: 'true'
+      annotations:
+        summary: Demo /work p95 latency is above 500 ms
+        description: The 1-minute p95 latency for route /work has exceeded 500 ms for 1 minute. Confirm whether the latency
+          was injected.
+    - alert: DemoUnavailable
+      expr: 'absent(up{namespace="demo"})
+
+        or
+
+        max by (namespace) (up{namespace="demo"}) == 0
+
+        '
+      for: 1m
+      labels:
+        severity: critical
+        service: demo
+        drill: 'true'
+      annotations:
+        summary: Demo service has no scrape target or is down
+        description: Prometheus sees no up target in namespace demo or all demo targets are down for 1 minute. Check the ServiceMonitor,
+          Service endpoints, and Pod readiness.
+    - alert: DemoPodCrashLooping
+      expr: 'increase(kube_pod_container_status_restarts_total{namespace="demo",container="demo-service"}[10m]) > 3
+
+        '
+      for: 1m
+      labels:
+        severity: critical
+        service: demo
+        drill: 'true'
+      annotations:
+        summary: Demo container is restarting repeatedly
+        description: Container demo-service in namespace demo restarted more than 3 times in 10 minutes. Inspect the current
+          Pod logs (startup_failed is a known deliberate drill) and events.

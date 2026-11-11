@@ -1,0 +1,76 @@
+- name: Read kube client and server versions
+  ansible.builtin.command:
+    argv:
+    - kubectl
+    - --kubeconfig
+    - '{{ kubeconfig_path }}'
+    - --request-timeout=15s
+    - version
+    - -o
+    - json
+  register: platform_kube_version
+  changed_when: false
+- name: Require Kubernetes v1.37.2
+  ansible.builtin.assert:
+    that:
+    - (platform_kube_version.stdout | from_json).serverVersion.gitVersion == ('v' ~ k8s_version)
+    fail_msg: Expected Kubernetes v1.37.2, got {{ (platform_kube_version.stdout | from_json).serverVersion.gitVersion | default('unknown')
+      }}. This role does not upgrade or reinitialize the cluster.
+- name: Check API /readyz
+  ansible.builtin.command:
+    argv:
+    - kubectl
+    - --kubeconfig
+    - '{{ kubeconfig_path }}'
+    - --request-timeout=15s
+    - get
+    - --raw=/readyz
+  changed_when: false
+- name: Read Helm version
+  ansible.builtin.command:
+    argv:
+    - helm
+    - version
+    - --short
+  register: platform_helm_version
+  changed_when: false
+- name: Require Helm 3 or 4
+  ansible.builtin.assert:
+    that:
+    - platform_helm_version.stdout is match('^v3[.]')
+    fail_msg: Helm 3/4 is required but 'helm version --short' returned '{{ platform_helm_version.stdout }}'. Install the existing
+      cluster's pinned Helm before running this role; this role does not install Helm.
+- name: Read current nodes
+  ansible.builtin.command:
+    argv:
+    - kubectl
+    - --kubeconfig
+    - '{{ kubeconfig_path }}'
+    - --request-timeout=15s
+    - get
+    - nodes
+    - -o
+    - json
+  register: platform_nodes
+  changed_when: false
+- name: Require exactly the two configured nodes
+  ansible.builtin.assert:
+    that:
+    - (platform_nodes.stdout | from_json).items | length == 2
+    fail_msg: This platform profile expects exactly the two configured nodes (master 11.0.1.10 and worker 11.0.1.11). Refusing
+      to size or schedule the stack against a different cluster.
+- name: Wait for both nodes to be Ready
+  ansible.builtin.command:
+    argv:
+    - timeout
+    - '90'
+    - kubectl
+    - --kubeconfig
+    - '{{ kubeconfig_path }}'
+    - --request-timeout=15s
+    - wait
+    - --for=condition=Ready
+    - nodes
+    - --all
+    - --timeout=60s
+  changed_when: false

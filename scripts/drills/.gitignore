@@ -1,0 +1,5 @@
+# 本地演练状态与证据，不提交。
+.state/
+logs/
+*.jsonl
+*.state.json
