@@ -31,6 +31,14 @@ controller:
 
 repoServer:
   replicas: 1
+  # Lab egress for Git fetch. Change/remove these entries on another network.
+  env:
+    - name: HTTP_PROXY
+      value: http://11.0.1.1:7890
+    - name: HTTPS_PROXY
+      value: http://11.0.1.1:7890
+    - name: NO_PROXY
+      value: localhost,127.0.0.1,11.0.1.0/24,10.244.0.0/16,10.96.0.0/12,.svc,.cluster.local
   resources:
     requests:
       cpu: 100m
@@ -75,7 +83,7 @@ applicationSet:
 redis:
   enabled: true
   image:
-    repository: ecr-public.aws.com/docker/library/redis
+    repository: docker.io/library/redis
     tag: 8.6.4-alpine
   resources:
     requests:

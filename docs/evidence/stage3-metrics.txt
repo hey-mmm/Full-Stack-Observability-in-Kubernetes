@@ -1,0 +1,44 @@
+== Stage 3/4 observability acceptance ==
+phase=metrics namespaces=monitoring/logging/demo
+read-only: no delete/restart/apply operations
+[PASS] Kubernetes API /readyz
+node=master ready=true cpu=2 memory=3866404Ki
+node=worker ready=true cpu=4 memory=12115740Ki
+control-plane NoSchedule taint=present
+[PASS] 两节点 Ready，控制面保留 NoSchedule taint
+local-path default=true WaitForFirstConsumer=true reclaimPolicy=Delete
+[PASS] local-path StorageClass 参数正确且为默认类
+local-path provisioner available
+[PASS] local-path provisioner Deployment 可用
+pvc=alert-receiver-data capacity=1Gi phase=Bound storageClass=local-path
+pvc=alertmanager-monitoring-kube-prometheus-alertmanager-db-alertmanager-monitoring-kube-prometheus-alertmanager-0 capacity=1Gi phase=Bound storageClass=local-path
+pvc=monitoring-grafana capacity=2Gi phase=Bound storageClass=local-path
+pvc=prometheus-monitoring-kube-prometheus-prometheus-db-prometheus-monitoring-kube-prometheus-prometheus-0 capacity=10Gi phase=Bound storageClass=local-path
+[PASS] PVC 全部 Bound 且使用 local-path（required=10Gi 2Gi 1Gi）
+pv=pvc-225434ab-ce24-4f69-a2d3-dbd87e3e677b reclaimPolicy=Delete phase=Bound
+pv=pvc-6f22c674-80e4-44d1-86d6-20831d8d60ea reclaimPolicy=Delete phase=Bound
+pv=pvc-846ba5aa-c336-4508-8464-a51bf4433f18 reclaimPolicy=Delete phase=Bound
+pv=pvc-8e1fd711-b97b-48c1-b187-d8667e022c3d reclaimPolicy=Delete phase=Bound
+[PASS] monitoring 的 PV 均为 Bound，reclaimPolicy=Delete
+all active targets up: 19
+node-exporter targets=2 nodes=['11.0.1.10:9100', '11.0.1.11:9100']
+kube-state-metrics targets=1
+demo targets=1 pools=['serviceMonitor/demo/demo/0']
+[PASS] Prometheus targets：node-exporter 两节点、KSM、demo 均 active/up
+rules: 5 recordings + 4 alerts present; 1m drill duration; SLO rule has no-traffic guard
+[PASS] Demo 规则组完整（1m 演练告警、7d SLI/SLO 记录、无流量保护）
+demo_http_requests_total sample present
+[PASS] Prometheus 实际查询到 demo_http_requests_total{route=/work}
+demo_http_request_duration_seconds_bucket samples present
+[PASS] Prometheus 实际查询到 demo_http_request_duration_seconds buckets
+SLO target=0.999
+[PASS] 7d SLO 目标记录为 0.999
+alertmanager config secret=alertmanager-monitoring-kube-prometheus-alertmanager
+[PASS] Alertmanager 实际配置含 send_resolved=true 和本地 webhook
+[PASS] alert receiver /healthz 正常
+receiver validated alert=DemoHighErrorRate fingerprint=1a5f72e6c13a80ff source=alert.fingerprint firing_at=2026-11-11T12:10:43.132000+00:00 resolved_at=2026-11-11T12:21:43.167000+00:00 events=41
+[PASS] alert receiver 有同一 fingerprint 的 DemoHighErrorRate firing/resolved 记录，且恢复晚于触发
+datasources=['alertmanager', 'loki', 'prometheus']
+[PASS] Grafana 数据源包含 Prometheus 和 Loki
+[PASS] Grafana dashboard uid=demo-observability 可查询
+acceptance summary: checks=16 passes=16 failures=0

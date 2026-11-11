@@ -148,6 +148,13 @@ alertmanager:
               storage: 1Gi
 grafana:
   enabled: true
+  startupProbe:
+    httpGet:
+      path: /api/health
+      port: 3000
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 60
   image:
     registry: docker.io
     repository: grafana/grafana

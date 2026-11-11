@@ -69,6 +69,8 @@ kube_user_kubeconfig: "/home/{{ ansible_user }}/.kube/config"
 # 库存主机名与实际 hostname 统一；join 冲突时 fail，不静默改名已入群节点。
 common_hostname: "{{ inventory_hostname }}"
 timezone: Asia/Shanghai
+# Explicit IPs avoid the host proxy's fake-IP DNS for NTP (UDP is not HTTP).
+ntp_servers: [203.107.6.88, 120.25.115.20]
 base_packages:
   - apt-transport-https
   - ca-certificates

@@ -357,7 +357,7 @@ print("demo targets=%s pools=%s" % (len(demo), sorted({t.get("scrapePool") for t
     return
   fi
   if printf '%s' "$rules" | python3 -c '
-import json, sys
+import json, re, sys
 data = json.load(sys.stdin)
 groups = data.get("data", {}).get("groups", [])
 group = next((g for g in groups if g.get("name") == "demo-slo"), None)
@@ -370,7 +370,7 @@ for name in ["demo:sli_availability:ratio_7d", "demo:http_errors:ratio_5m", "dem
 for name in ["DemoHighErrorRate", "DemoP95LatencyHigh", "DemoUnavailable", "DemoPodCrashLooping"]:
     assert name in alerts, f"alert {name} missing"
 slo = records["demo:sli_availability:ratio_7d"].get("query", "")
-assert "and on()" in slo and "> 0" in slo, "availability rule lacks no-traffic guard"
+assert re.search(r"and\s+on\s*\(\s*\)", slo) and re.search(r">\s*0", slo), "availability rule lacks no-traffic guard"
 for name, rule in alerts.items():
     assert rule.get("health") == "ok", "unhealthy rule: %s %s" % (name, rule.get("health"))
     duration = rule.get("duration")

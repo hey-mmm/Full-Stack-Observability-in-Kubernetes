@@ -131,6 +131,22 @@
     state: started
     enabled: true
 
+- name: Ensure NTP drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/timesyncd.conf.d
+    state: directory
+    mode: '0755'
+
+- name: Configure reachable NTP servers independently of proxy DNS
+  ansible.builtin.copy:
+    dest: /etc/systemd/timesyncd.conf.d/10-observability.conf
+    mode: '0644'
+    content: |
+      [Time]
+      NTP={{ ntp_servers | join(' ') }}
+      FallbackNTP=
+  notify: Restart systemd-timesyncd
+
 - name: Ensure NTP synchronization is enabled
   ansible.builtin.command:
     argv:

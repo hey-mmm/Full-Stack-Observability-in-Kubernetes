@@ -1,0 +1,18 @@
+{
+  "image": "docker.io/grafana/alloy:v1.21.3",
+  "platform": "linux/amd64",
+  "source": "docker.m.daocloud.io",
+  "official_source": "registry-1.docker.io",
+  "tls_verified": true,
+  "official_index_digest": "sha256:8ab871206bd2d8f89277f53abffee5f452a293980788d52f85fa183a87a505a4",
+  "daocloud_index_digest": "sha256:8ab871206bd2d8f89277f53abffee5f452a293980788d52f85fa183a87a505a4",
+  "dockerhub_index_match": true,
+  "selected_manifest_digest": "sha256:5ed61e8ab102bdf590ea3d67c5e29dfb5837f5b4660a1d2a0db4b8160553e9e7",
+  "selected_manifest_size": 1622,
+  "config_digest": "sha256:f203d78239ad619363d4f1aa5d5ca85424155ab36518c9bc913ceb54f4370380",
+  "layer_count": 7,
+  "layers_total_bytes": 223643311,
+  "tar_bytes": 223672320,
+  "tar_sha256": "f8d6aaba951c5cf234c910e489e1af70fb8be79b9835f638f377fd184dc7e00c",
+  "all_blob_digests_verified": true
+}

@@ -1,0 +1,487 @@
+
+PLAY [Stage 1 - Host baseline and runtime packages] ****************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [master]
+ok: [worker]
+
+TASK [common : Assert supported Ubuntu 22.04 host] *****************************
+ok: [master] => {
+    "changed": false,
+    "msg": "Ubuntu 22.04.x detected."
+}
+ok: [worker] => {
+    "changed": false,
+    "msg": "Ubuntu 22.04.x detected."
+}
+
+TASK [common : Install base packages] ******************************************
+ok: [master]
+ok: [worker]
+
+TASK [common : Detect an already enrolled kubelet before hostname changes] *****
+ok: [worker]
+ok: [master]
+
+TASK [common : Refuse to rename a node that may already belong to a cluster] ***
+ok: [master] => {
+    "changed": false,
+    "msg": "Hostname and enrollment state are consistent."
+}
+ok: [worker] => {
+    "changed": false,
+    "msg": "Hostname and enrollment state are consistent."
+}
+
+TASK [common : Set the explicit inventory hostname] ****************************
+ok: [worker]
+ok: [master]
+
+TASK [common : Keep the explicit hostname resolvable in /etc/hosts] ************
+ok: [worker]
+ok: [master]
+
+TASK [common : Remove the stale localdomain search domain from the node resolver] ***
+ok: [master]
+ok: [worker]
+
+TASK [common : Verify the node resolver does not advertise localdomain] ********
+ok: [worker]
+ok: [master]
+
+TASK [common : Persist kernel modules required by Kubernetes and Calico] *******
+ok: [worker]
+ok: [master]
+
+TASK [common : Load kernel modules now] ****************************************
+ok: [worker] => (item=overlay)
+ok: [master] => (item=overlay)
+ok: [worker] => (item=br_netfilter)
+ok: [master] => (item=br_netfilter)
+
+TASK [common : Persist Kubernetes sysctl settings] *****************************
+ok: [worker]
+ok: [master]
+
+TASK [common : Apply sysctl settings] ******************************************
+ok: [worker]
+ok: [master]
+
+TASK [common : Disable active swap] ********************************************
+skipping: [master]
+skipping: [worker]
+
+TASK [common : Disable swap entries in /etc/fstab] *****************************
+ok: [worker]
+ok: [master]
+
+TASK [common : Ensure timezone is configured] **********************************
+ok: [master]
+ok: [worker]
+
+TASK [common : Ensure systemd-timesyncd is enabled] ****************************
+ok: [worker]
+ok: [master]
+
+TASK [common : Ensure NTP synchronization is enabled] **************************
+ok: [worker]
+ok: [master]
+
+TASK [common : Verify swap is disabled] ****************************************
+ok: [worker]
+ok: [master]
+
+TASK [common : Verify forwarding sysctl is active] *****************************
+ok: [worker]
+ok: [master]
+
+TASK [containerd : Ensure apt keyring directory exists] ************************
+ok: [worker]
+ok: [master]
+
+TASK [containerd : Install Docker apt signing key] *****************************
+ok: [worker]
+ok: [master]
+
+TASK [containerd : Configure Docker apt repository for jammy] ******************
+ok: [worker]
+ok: [master]
+
+TASK [containerd : Refresh apt cache after Docker repository change] ***********
+skipping: [master]
+skipping: [worker]
+
+TASK [containerd : Ensure apt cache is available] ******************************
+ok: [master]
+ok: [worker]
+
+TASK [containerd : Install pinned containerd.io] *******************************
+ok: [worker]
+ok: [master]
+
+TASK [containerd : Hold containerd.io package version] *************************
+ok: [worker]
+ok: [master]
+
+TASK [containerd : Ensure containerd configuration directory exists] ***********
+ok: [worker]
+ok: [master]
+
+TASK [containerd : Ensure containerd systemd drop-in directory exists when a proxy is configured] ***
+ok: [worker]
+ok: [master]
+
+TASK [containerd : Install managed containerd systemd proxy drop-in] ***********
+ok: [worker]
+ok: [master]
+
+TASK [containerd : Remove managed containerd proxy drop-in when no proxy is configured] ***
+skipping: [master]
+skipping: [worker]
+
+TASK [containerd : Install deterministic containerd v3 configuration] **********
+ok: [worker]
+ok: [master]
+
+TASK [containerd : Validate the containerd registry mirror map] ****************
+ok: [master] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+ok: [worker] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [containerd : Ensure containerd registry configuration directory exists] ***
+ok: [worker]
+ok: [master]
+
+TASK [containerd : Ensure per-registry configuration directories exist] ********
+ok: [master] => (item=docker.io)
+ok: [worker] => (item=docker.io)
+ok: [master] => (item=quay.io)
+ok: [worker] => (item=quay.io)
+ok: [master] => (item=ghcr.io)
+ok: [worker] => (item=ghcr.io)
+ok: [master] => (item=registry.k8s.io)
+ok: [worker] => (item=registry.k8s.io)
+
+TASK [containerd : Install pull-only registry mirror hosts.toml] ***************
+ok: [master] => (item=docker.io)
+ok: [worker] => (item=docker.io)
+ok: [master] => (item=quay.io)
+ok: [worker] => (item=quay.io)
+ok: [master] => (item=ghcr.io)
+ok: [worker] => (item=ghcr.io)
+ok: [master] => (item=registry.k8s.io)
+ok: [worker] => (item=registry.k8s.io)
+
+TASK [containerd : Check ownership of existing hosts.toml before cleanup] ******
+skipping: [master] => (item=quay.io) 
+skipping: [worker] => (item=quay.io) 
+skipping: [master] => (item=docker.io) 
+skipping: [worker] => (item=docker.io) 
+skipping: [worker] => (item=ghcr.io) 
+skipping: [master] => (item=ghcr.io) 
+skipping: [worker] => (item=registry.k8s.io) 
+skipping: [master] => (item=registry.k8s.io) 
+skipping: [worker]
+skipping: [master]
+
+TASK [containerd : Remove role-managed hosts.toml when a registry mirror is not configured] ***
+skipping: [master] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'quay.io'}) 
+skipping: [master] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'docker.io'}) 
+skipping: [master] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'ghcr.io'}) 
+skipping: [master] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'registry.k8s.io'}) 
+skipping: [master]
+skipping: [worker] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'quay.io'}) 
+skipping: [worker] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'docker.io'}) 
+skipping: [worker] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'ghcr.io'}) 
+skipping: [worker] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'registry.k8s.io'}) 
+skipping: [worker]
+
+TASK [containerd : Remove empty per-registry directories after managed config cleanup] ***
+skipping: [master] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'quay.io'}) 
+skipping: [worker] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'quay.io'}) 
+skipping: [master] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'docker.io'}) 
+skipping: [worker] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'docker.io'}) 
+skipping: [master] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'ghcr.io'}) 
+skipping: [worker] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'ghcr.io'}) 
+skipping: [master] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'registry.k8s.io'}) 
+skipping: [master]
+skipping: [worker] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'registry.k8s.io'}) 
+skipping: [worker]
+
+TASK [containerd : Install crictl configuration pinned to the containerd CRI socket] ***
+ok: [master]
+ok: [worker]
+
+TASK [containerd : Ensure containerd is enabled and running] *******************
+ok: [master]
+ok: [worker]
+
+TASK [containerd : Apply containerd configuration before Kubernetes starts] ****
+
+TASK [containerd : Apply containerd configuration before Kubernetes starts] ****
+
+TASK [containerd : Wait for containerd CRI socket] *****************************
+ok: [worker]
+ok: [master]
+
+TASK [containerd : Verify containerd v3 config enables the systemd cgroup driver] ***
+ok: [worker]
+ok: [master]
+
+TASK [containerd : Verify the configured pause image is pinned in config v3] ***
+ok: [worker]
+ok: [master]
+
+TASK [containerd : Read containerd plugin list] ********************************
+ok: [worker]
+ok: [master]
+
+TASK [containerd : Assert CRI runtime and image plugins are loaded] ************
+ok: [master] => {
+    "changed": false,
+    "msg": "containerd CRI runtime and image plugins are loaded."
+}
+ok: [worker] => {
+    "changed": false,
+    "msg": "containerd CRI runtime and image plugins are loaded."
+}
+
+TASK [kubernetes : Ensure apt keyring directory exists] ************************
+ok: [worker]
+ok: [master]
+
+TASK [kubernetes : Install Kubernetes apt signing key] *************************
+ok: [worker]
+ok: [master]
+
+TASK [kubernetes : Configure pinned Kubernetes apt repository] *****************
+ok: [worker]
+ok: [master]
+
+TASK [kubernetes : Refresh apt cache after Kubernetes repository change] *******
+skipping: [master]
+skipping: [worker]
+
+TASK [kubernetes : Ensure apt cache is available] ******************************
+ok: [master]
+ok: [worker]
+
+TASK [kubernetes : Install pinned kubelet, kubeadm and kubectl] ****************
+ok: [worker]
+ok: [master]
+
+TASK [kubernetes : Hold Kubernetes package versions] ***************************
+ok: [worker] => (item=kubelet)
+ok: [master] => (item=kubelet)
+ok: [master] => (item=kubeadm)
+ok: [worker] => (item=kubeadm)
+ok: [master] => (item=kubectl)
+ok: [worker] => (item=kubectl)
+
+TASK [kubernetes : Enable kubelet without forcing it to start before init/join] ***
+ok: [worker]
+ok: [master]
+
+TASK [kubernetes : Read installed kubeadm version] *****************************
+ok: [worker]
+ok: [master]
+
+TASK [kubernetes : Assert installed kubeadm matches the pinned version] ********
+ok: [master] => {
+    "changed": false,
+    "msg": "kubeadm v1.37.2 is installed."
+}
+ok: [worker] => {
+    "changed": false,
+    "msg": "kubeadm v1.37.2 is installed."
+}
+
+PLAY [Stage 1 - Initialize the control plane] **********************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [master]
+
+TASK [control_plane : Check whether the control plane has already been initialized] ***
+ok: [master]
+
+TASK [control_plane : Check for a partially written control-plane manifest] ****
+ok: [master]
+
+TASK [control_plane : Refuse to initialize over a partial control plane] *******
+skipping: [master]
+
+TASK [control_plane : Check API readiness endpoint] ****************************
+ok: [master]
+
+TASK [control_plane : Check that nodes can be read from the existing cluster] ***
+ok: [master]
+
+TASK [control_plane : Read the existing cluster server version] ****************
+ok: [master]
+
+TASK [control_plane : Parse the existing cluster server version safely] ********
+ok: [master]
+
+TASK [control_plane : Fail instead of re-initializing an unhealthy or wrong-version cluster] ***
+ok: [master] => {
+    "changed": false,
+    "msg": "Existing control plane is healthy and matches 1.37.2."
+}
+
+TASK [control_plane : Create a root-only kubeadm init log] *********************
+skipping: [master]
+
+TASK [control_plane : Run kubeadm init with pinned versions, timeouts and explicit CIDRs] ***
+skipping: [master]
+
+TASK [control_plane : Re-check admin.conf after init or health validation] *****
+ok: [master]
+
+TASK [control_plane : Assert the control plane produced admin.conf] ************
+ok: [master] => {
+    "changed": false,
+    "msg": "Control-plane admin.conf is present."
+}
+
+TASK [control_plane : Ensure the management user's .kube directory exists] *****
+ok: [master]
+
+TASK [control_plane : Install admin kubeconfig for the management user] ********
+ok: [master]
+
+TASK [control_plane : Read control-plane node status as the management user] ***
+ok: [master]
+
+TASK [control_plane : Show control-plane node status] **************************
+ok: [master] => {
+    "control_plane_nodes.stdout_lines": [
+        "NAME     STATUS   ROLES           AGE    VERSION   INTERNAL-IP   EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION               CONTAINER-RUNTIME",
+        "master   Ready    control-plane   140m   v1.37.2   11.0.1.10     <none>        Ubuntu 22.04.5 LTS   5.15.0-177-generic (amd64)   containerd://2.3.6",
+        "worker   Ready    <none>          140m   v1.37.2   11.0.1.11     <none>        Ubuntu 22.04.5 LTS   5.15.0-177-generic (amd64)   containerd://2.3.6"
+    ]
+}
+
+PLAY [Stage 1 - Apply Calico only, without blocking on workload readiness] *****
+
+TASK [calico : Ensure Calico source and rendered directories exist] ************
+ok: [master] => (item=/opt/calico)
+ok: [master] => (item=/opt/calico/rendered)
+
+TASK [calico : Download the immutable Calico v3.33.0 manifest with checksum verification] ***
+ok: [master]
+
+TASK [calico : Render a separate Calico manifest for the laboratory pod CIDR] ***
+ok: [master]
+
+TASK [calico : Set the Calico IPv4 pool only in the rendered manifest] *********
+ok: [master]
+
+TASK [calico : Read the rendered Calico manifest for validation] ***************
+ok: [master]
+
+TASK [calico : Assert the rendered Calico manifest uses the requested pod CIDR] ***
+ok: [master] => {
+    "changed": false,
+    "msg": "Rendered Calico IPPool is 10.244.0.0/16."
+}
+
+TASK [calico : Detect drift in the rendered Calico manifest with server-side diff] ***
+ok: [master]
+
+TASK [calico : Apply the rendered Calico manifest only when the server-side diff is non-empty] ***
+skipping: [master]
+
+PLAY [Stage 1 - Join workers without waiting for CNI-dependent readiness] ******
+
+TASK [Gathering Facts] *********************************************************
+ok: [worker]
+
+TASK [worker_join : Check whether this worker has already joined a cluster] ****
+ok: [worker]
+
+TASK [worker_join : Read the target API server from the existing kubelet kubeconfig] ***
+ok: [worker]
+
+TASK [worker_join : Fail if the existing kubelet points at a different cluster] ***
+ok: [worker] => {
+    "changed": false,
+    "msg": "Existing kubelet kubeconfig targets the expected API server."
+}
+
+TASK [worker_join : Check the worker Node object and InternalIP in the target cluster] ***
+ok: [worker -> master(11.0.1.10)]
+
+TASK [worker_join : Fail if the enrolled worker is absent or has a different IP] ***
+ok: [worker] => {
+    "changed": false,
+    "msg": "Existing worker enrollment is healthy in the target cluster."
+}
+
+TASK [worker_join : Generate a short-lived join command on the control plane] ***
+skipping: [worker]
+
+TASK [worker_join : Validate the generated join command shape] *****************
+skipping: [worker]
+
+TASK [worker_join : Join the worker without waiting for CNI-dependent Node readiness] ***
+skipping: [worker]
+
+TASK [worker_join : Wait only for the Node object to be registered in the target API] ***
+ok: [worker -> master(11.0.1.10)]
+
+PLAY [Stage 1 - Configure bounded kubelet image pull parallelism] **************
+
+TASK [Stat kubelet configuration] **********************************************
+ok: [master]
+ok: [worker]
+
+TASK [Assert kubelet configuration exists and pull parallelism is bounded] *****
+ok: [master]
+ok: [worker]
+
+TASK [Disable serialized image pulls] ******************************************
+ok: [master]
+ok: [worker]
+
+TASK [Bound parallel image pulls] **********************************************
+ok: [master]
+ok: [worker]
+
+PLAY [Stage 1 - Verify cluster, CNI and DNS convergence] ***********************
+
+TASK [Wait for all expected nodes to be Ready] *********************************
+ok: [master]
+
+TASK [Wait for kube-proxy on every node] ***************************************
+ok: [master]
+
+TASK [Wait for Calico node on every node] **************************************
+ok: [master]
+
+TASK [Wait for Calico kube-controllers] ****************************************
+ok: [master]
+
+TASK [Wait for CoreDNS] ********************************************************
+ok: [master]
+
+TASK [Read final node table] ***************************************************
+ok: [master]
+
+TASK [Show final node table] ***************************************************
+ok: [master] => {
+    "final_nodes.stdout_lines": [
+        "NAME     STATUS   ROLES           AGE    VERSION   INTERNAL-IP   EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION               CONTAINER-RUNTIME",
+        "master   Ready    control-plane   140m   v1.37.2   11.0.1.10     <none>        Ubuntu 22.04.5 LTS   5.15.0-177-generic (amd64)   containerd://2.3.6",
+        "worker   Ready    <none>          140m   v1.37.2   11.0.1.11     <none>        Ubuntu 22.04.5 LTS   5.15.0-177-generic (amd64)   containerd://2.3.6"
+    ]
+}
+
+PLAY RECAP *********************************************************************
+master                     : ok=81   changed=0    unreachable=0    failed=0    skipped=11   rescued=0    ignored=0   
+worker                     : ok=60   changed=0    unreachable=0    failed=0    skipped=10   rescued=0    ignored=0   
+

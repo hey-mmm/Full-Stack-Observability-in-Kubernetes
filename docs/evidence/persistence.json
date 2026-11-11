@@ -1,0 +1,29 @@
+{
+  "started_utc": "2026-11-11T13:28:22.971299+00:00",
+  "marker": "persistence-20261111T132813Z",
+  "log_timestamp_ns": "1794403702259964340",
+  "fixed_query_end_ns": "1794403702968483640",
+  "prom_query_time": 1794403708.459,
+  "prom_selector": "demo_http_requests_total{container=\"demo-service\",endpoint=\"http\",instance=\"10.244.171.92:8080\",job=\"demo\",namespace=\"demo\",pod=\"demo-66f5fcfd4-x88mb\",route=\"/work\",service=\"demo\",status=\"200\"}",
+  "prom_value_before": "67",
+  "prometheus-monitoring-kube-prometheus-prometheus-0": {
+    "old_uid": "62685b69-c72f-414a-a2b9-2b4347a05461",
+    "new_uid": "58c4040d-478c-4136-af9d-1cbaac8566b7",
+    "same_pvcs": [
+      "prometheus-monitoring-kube-prometheus-prometheus-db-prometheus-monitoring-kube-prometheus-prometheus-0"
+    ],
+    "ready": true
+  },
+  "loki-0": {
+    "old_uid": "71d5a950-ff08-483e-8dc5-2b88d8db766b",
+    "new_uid": "e48855c2-695e-4a42-9675-12a94c9d7480",
+    "same_pvcs": [
+      "storage-loki-0"
+    ],
+    "ready": true
+  },
+  "prom_value_after": "67",
+  "old_log_exact_match": true,
+  "completed_utc": "2026-11-11T13:29:26.696999+00:00",
+  "result": "PASS"
+}

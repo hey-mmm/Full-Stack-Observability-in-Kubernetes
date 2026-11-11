@@ -1,0 +1,124 @@
+{
+  "schema": "logging-image-provenance/v1",
+  "generated_at": "2026-11-11T12:21:05Z",
+  "platform": "linux/amd64",
+  "egress_proxy": "http://11.0.1.1:7890",
+  "tls_verification": true,
+  "selection": "tag/index resolved with official registry; compared selected linux/amd64 child manifest digest with mirror; child manifest fetched by digest",
+  "registries": {
+    "docker_official": "registry-1.docker.io",
+    "docker_mirror": "docker.m.daocloud.io",
+    "quay_official": "quay.io",
+    "quay_mirror": "quay.nju.edu.cn"
+  },
+  "all_match": true,
+  "images": [
+    {
+      "name": "loki",
+      "official_ref": "registry-1.docker.io/grafana/loki:3.7.9",
+      "mirror_ref": "docker.m.daocloud.io/grafana/loki:3.7.9",
+      "platform": "linux/amd64",
+      "official_manifest_digest": "sha256:569e5cab050b7705eb82080335ff9a8bd329650b358bb0d42131e3ced8d9492e",
+      "mirror_manifest_digest": "sha256:569e5cab050b7705eb82080335ff9a8bd329650b358bb0d42131e3ced8d9492e",
+      "official_index_digest": "sha256:0db216b630ae1f348a1584c67f3cead8b4c1fc839169a39501db664744158e28",
+      "mirror_index_digest": "sha256:0db216b630ae1f348a1584c67f3cead8b4c1fc839169a39501db664744158e28",
+      "official_index_media_type": "application/vnd.docker.distribution.manifest.list.v2+json",
+      "mirror_index_media_type": "application/vnd.docker.distribution.manifest.list.v2+json",
+      "official_child_count": 3,
+      "mirror_child_count": 3,
+      "official_child": {
+        "verified": true,
+        "config_digest": "sha256:5d47ead9b695cb22fb4851f09efd40ffd41db92278d847bdfafc25f9c5d654e7",
+        "layer_count": 18
+      },
+      "mirror_child": {
+        "verified": true,
+        "config_digest": "sha256:5d47ead9b695cb22fb4851f09efd40ffd41db92278d847bdfafc25f9c5d654e7",
+        "layer_count": 18
+      },
+      "match": true,
+      "checked_at": "2026-11-11T12:21:05Z"
+    },
+    {
+      "name": "alloy",
+      "official_ref": "registry-1.docker.io/grafana/alloy:v1.21.3",
+      "mirror_ref": "docker.m.daocloud.io/grafana/alloy:v1.21.3",
+      "platform": "linux/amd64",
+      "official_manifest_digest": "sha256:5ed61e8ab102bdf590ea3d67c5e29dfb5837f5b4660a1d2a0db4b8160553e9e7",
+      "mirror_manifest_digest": "sha256:5ed61e8ab102bdf590ea3d67c5e29dfb5837f5b4660a1d2a0db4b8160553e9e7",
+      "official_index_digest": "sha256:8ab871206bd2d8f89277f53abffee5f452a293980788d52f85fa183a87a505a4",
+      "mirror_index_digest": "sha256:8ab871206bd2d8f89277f53abffee5f452a293980788d52f85fa183a87a505a4",
+      "official_index_media_type": "application/vnd.oci.image.index.v1+json",
+      "mirror_index_media_type": "application/vnd.oci.image.index.v1+json",
+      "official_child_count": 8,
+      "mirror_child_count": 8,
+      "official_child": {
+        "verified": true,
+        "config_digest": "sha256:f203d78239ad619363d4f1aa5d5ca85424155ab36518c9bc913ceb54f4370380",
+        "layer_count": 7
+      },
+      "mirror_child": {
+        "verified": true,
+        "config_digest": "sha256:f203d78239ad619363d4f1aa5d5ca85424155ab36518c9bc913ceb54f4370380",
+        "layer_count": 7
+      },
+      "match": true,
+      "checked_at": "2026-11-11T12:21:05Z"
+    },
+    {
+      "name": "loki-k8s-sidecar",
+      "official_ref": "registry-1.docker.io/kiwigrid/k8s-sidecar:2.14.3",
+      "mirror_ref": "docker.m.daocloud.io/kiwigrid/k8s-sidecar:2.14.3",
+      "platform": "linux/amd64",
+      "official_manifest_digest": "sha256:84df4f4f53bedc59e72f594f58047a1f98f8aebc4326533f0c7170b2748e6840",
+      "mirror_manifest_digest": "sha256:84df4f4f53bedc59e72f594f58047a1f98f8aebc4326533f0c7170b2748e6840",
+      "official_index_digest": "sha256:52d311dcedd587421a236c4d6c621f05614c40a51386e955e0699dca97ec0880",
+      "mirror_index_digest": "sha256:52d311dcedd587421a236c4d6c621f05614c40a51386e955e0699dca97ec0880",
+      "official_index_media_type": "application/vnd.oci.image.index.v1+json",
+      "mirror_index_media_type": "application/vnd.oci.image.index.v1+json",
+      "official_child_count": 12,
+      "mirror_child_count": 12,
+      "official_child": {
+        "verified": true,
+        "config_digest": "sha256:1bc800fdb8755a40d53cdf1b8f5cd082f8da0f234c73feee290c395e6363ddca",
+        "layer_count": 7
+      },
+      "mirror_child": {
+        "verified": true,
+        "config_digest": "sha256:1bc800fdb8755a40d53cdf1b8f5cd082f8da0f234c73feee290c395e6363ddca",
+        "layer_count": 7
+      },
+      "match": true,
+      "checked_at": "2026-11-11T12:21:05Z"
+    },
+    {
+      "name": "alloy-config-reloader",
+      "official_ref": "quay.io/prometheus-operator/prometheus-config-reloader:v0.94.2",
+      "mirror_ref": "quay.nju.edu.cn/prometheus-operator/prometheus-config-reloader:v0.94.2",
+      "platform": "linux/amd64",
+      "official_manifest_digest": "sha256:e825978c71333cc8e140400506da8fa4972c7087f62805b378a1b93259924fdb",
+      "mirror_manifest_digest": "sha256:e825978c71333cc8e140400506da8fa4972c7087f62805b378a1b93259924fdb",
+      "official_index_digest": "sha256:a1897c67478bc23434534e91ad3855280771196b1daf17144db9dbcb655bef71",
+      "mirror_index_digest": "sha256:a1897c67478bc23434534e91ad3855280771196b1daf17144db9dbcb655bef71",
+      "official_index_media_type": "application/vnd.docker.distribution.manifest.list.v2+json",
+      "mirror_index_media_type": "application/vnd.docker.distribution.manifest.list.v2+json",
+      "official_child_count": 5,
+      "mirror_child_count": 5,
+      "official_child": {
+        "verified": true,
+        "config_digest": "sha256:e346bb7249e7e2392839dc963e464818826c64212b86d031f6820db2d2c906fe",
+        "layer_count": 3
+      },
+      "mirror_child": {
+        "verified": true,
+        "config_digest": "sha256:e346bb7249e7e2392839dc963e464818826c64212b86d031f6820db2d2c906fe",
+        "layer_count": 3
+      },
+      "match": true,
+      "checked_at": "2026-11-11T12:21:05Z",
+      "pinned_index_expected": "sha256:a1897c67478bc23434534e91ad3855280771196b1daf17144db9dbcb655bef71",
+      "pinned_index_match": true
+    }
+  ],
+  "failures": []
+}

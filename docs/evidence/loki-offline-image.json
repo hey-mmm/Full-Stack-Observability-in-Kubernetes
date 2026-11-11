@@ -1,0 +1,18 @@
+{
+  "image": "docker.io/grafana/loki:3.7.9",
+  "platform": "linux/amd64",
+  "source": "docker.m.daocloud.io",
+  "official_source": "registry-1.docker.io",
+  "tls_verified": true,
+  "official_index_digest": "sha256:0db216b630ae1f348a1584c67f3cead8b4c1fc839169a39501db664744158e28",
+  "daocloud_index_digest": "sha256:0db216b630ae1f348a1584c67f3cead8b4c1fc839169a39501db664744158e28",
+  "dockerhub_index_match": true,
+  "selected_manifest_digest": "sha256:569e5cab050b7705eb82080335ff9a8bd329650b358bb0d42131e3ced8d9492e",
+  "selected_manifest_size": 4062,
+  "config_digest": "sha256:5d47ead9b695cb22fb4851f09efd40ffd41db92278d847bdfafc25f9c5d654e7",
+  "layer_count": 18,
+  "layers_total_bytes": 48094093,
+  "tar_bytes": 48148480,
+  "tar_sha256": "4b1b9302f2dfcf28b63ecee79a836bdb95946459c1eae7cd674d297b52e68bf0",
+  "all_blob_digests_verified": true
+}

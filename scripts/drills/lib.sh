@@ -200,20 +200,21 @@ wait_for_rollout() {
   timeout="${timeout%s}"
   [[ "$timeout" =~ ^[0-9]+$ ]] || timeout=180
   local deadline=$((SECONDS + timeout))
-  local spec updated ready unavailable generation observed
+  local spec updated ready unavailable generation observed total
   while (( SECONDS < deadline )); do
-    read -r generation observed spec updated ready unavailable < <(
+    read -r generation observed spec total updated ready unavailable < <(
       k -n "$NAMESPACE" get deployment "$DEPLOYMENT" \
-        -o jsonpath='{.metadata.generation} {.status.observedGeneration} {.spec.replicas} {.status.updatedReplicas} {.status.readyReplicas} {.status.unavailableReplicas}' \
+        -o jsonpath='{.metadata.generation} {.status.observedGeneration} {.spec.replicas} {.status.replicas} {.status.updatedReplicas} {.status.readyReplicas} {.status.unavailableReplicas}' \
         2>/dev/null || true
     )
     [[ -n "$generation" ]] || generation=0
     [[ -n "$observed" ]] || observed=0
     [[ -n "$spec" ]] || spec=0
+    [[ -n "$total" ]] || total=0
     [[ -n "$updated" ]] || updated=0
     [[ -n "$ready" ]] || ready=0
     [[ -n "$unavailable" ]] || unavailable=0
-    if (( observed >= generation && generation > 0 && updated == spec && ready >= spec && unavailable == 0 )); then
+    if (( observed >= generation && generation > 0 && total == spec && updated == spec && ready >= spec && unavailable == 0 )); then
       return 0
     fi
     sleep 2

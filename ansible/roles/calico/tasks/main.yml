@@ -60,7 +60,27 @@
       apply an ambiguous CNI configuration.
     success_msg: "Rendered Calico IPPool is {{ calico_ipv4_pool_cidr }}."
 
-- name: Apply the rendered Calico manifest without waiting for workload readiness
+- name: Detect drift in the rendered Calico manifest with server-side diff
+  ansible.builtin.command:
+    argv:
+      - timeout
+      - "120"
+      - kubectl
+      - --kubeconfig
+      - "{{ kubeconfig_path }}"
+      - --request-timeout=30s
+      - diff
+      - --server-side
+      - --force-conflicts
+      - --field-manager=ansible-calico
+      - -f
+      - "{{ calico_rendered_manifest_path }}"
+  register: calico_diff
+  changed_when: false
+  # kubectl diff uses 0 for no drift and 1 for drift; anything else is a real error.
+  failed_when: calico_diff.rc not in [0, 1]
+
+- name: Apply the rendered Calico manifest only when the server-side diff is non-empty
   ansible.builtin.command:
     argv:
       - timeout
@@ -70,10 +90,12 @@
       - "{{ kubeconfig_path }}"
       - --request-timeout=30s
       - apply
+      - --server-side
+      - --force-conflicts
+      - --field-manager=ansible-calico
       - -f
       - "{{ calico_rendered_manifest_path }}"
   register: calico_apply
-  changed_when: >-
-    'created' in calico_apply.stdout or
-    'configured' in calico_apply.stdout or
-    'patched' in calico_apply.stdout
+  when: (calico_diff.rc | default(0)) == 1
+  # A non-empty diff is the only condition that justifies a change report.
+  changed_when: (calico_diff.rc | default(0)) == 1

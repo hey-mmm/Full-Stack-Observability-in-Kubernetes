@@ -45,13 +45,24 @@
               app.kubernetes.io/part-of: observability-demo
               app.kubernetes.io/managed-by: ansible
 
+    - name: Discover ServiceMonitor support before the monitoring stage
+      kubernetes.core.k8s_info:
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: apiextensions.k8s.io/v1
+        kind: CustomResourceDefinition
+        name: servicemonitors.monitoring.coreos.com
+      register: demo_service_monitor_crd
+
     - name: Install the demo chart and wait for healthy probes
       kubernetes.core.helm:
         kubeconfig: "{{ kubeconfig_path }}"
         name: demo
         chart_ref: "{{ demo_repo_root }}/charts/demo"
         release_namespace: demo
-        release_values: "{{ demo_values }}"
+        release_values: >-
+          {{ demo_values | combine({'serviceMonitor': {'enabled':
+             (demo_values.serviceMonitor.enabled | default(false))
+             and (demo_service_monitor_crd.resources | length > 0)}}, recursive=true) }}
         wait: true
         timeout: 5m
         history_max: 3

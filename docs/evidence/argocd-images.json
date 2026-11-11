@@ -1,0 +1,96 @@
+{
+  "schema": "argocd-image-cache-provenance/v1",
+  "generated_at_utc": "2026-11-11T13:34:18Z",
+  "scope": "Cache preparation only; no Argo CD installation",
+  "install_performed": false,
+  "source_edits_performed": false,
+  "containerd_or_kubelet_restarted": false,
+  "chart": {
+    "archive": "work/argocd-cache/argo-cd-10.17.2.tgz",
+    "name": "argo-cd",
+    "version": "10.17.2",
+    "appVersion": "v3.6.1",
+    "values": "outputs/Full-Stack-Observability-in-Kubernetes/ansible/roles/argocd/files/values.yaml",
+    "rendered_manifest": "work/argocd-cache/argocd-rendered-fresh.yaml",
+    "rendered_manifest_sha256": "8c075190b41d8fadbf31373afeb6fe659b6dd0efd465e3e8c40ea5604d791b96",
+    "required_images": [
+      "quay.io/argoproj/argocd:v3.6.1",
+      "ecr-public.aws.com/docker/library/redis:8.6.4-alpine"
+    ]
+  },
+  "argocd": {
+    "tag": "v3.6.1",
+    "linux_amd64": {
+      "index_digest": "sha256:296e3d74f449b2ce45265613fcb68c18ed7366488360c8ea32f5f2a93d2e5c54",
+      "manifest_digest": "sha256:967306562700bc6f4bab7c247caf69892d77624b019ca510e86b4b00fc9c5584",
+      "config_digest": "sha256:d676405cb18ea6354cbd9069b9b6a3acd81928f7d5f1f858fcb185abf4f18134"
+    },
+    "official_quay_reference": "quay.io/argoproj/argocd:v3.6.1",
+    "official_quay_index_digest": "sha256:296e3d74f449b2ce45265613fcb68c18ed7366488360c8ea32f5f2a93d2e5c54",
+    "nju_mirror_reference": "quay.nju.edu.cn/argoproj/argocd:v3.6.1",
+    "nju_mirror_index_digest": "sha256:296e3d74f449b2ce45265613fcb68c18ed7366488360c8ea32f5f2a93d2e5c54",
+    "official_amd64_manifest_digest": "sha256:967306562700bc6f4bab7c247caf69892d77624b019ca510e86b4b00fc9c5584",
+    "nju_amd64_manifest_digest": "sha256:967306562700bc6f4bab7c247caf69892d77624b019ca510e86b4b00fc9c5584",
+    "official_amd64_config_digest": "sha256:d676405cb18ea6354cbd9069b9b6a3acd81928f7d5f1f858fcb185abf4f18134",
+    "nju_amd64_config_digest": "sha256:d676405cb18ea6354cbd9069b9b6a3acd81928f7d5f1f858fcb185abf4f18134",
+    "official_and_nju_index_identical": true,
+    "official_and_nju_amd64_manifest_identical": true,
+    "comparison_evidence": {
+      "official_index_file_sha256": "296e3d74f449b2ce45265613fcb68c18ed7366488360c8ea32f5f2a93d2e5c54",
+      "nju_index_file_sha256": "296e3d74f449b2ce45265613fcb68c18ed7366488360c8ea32f5f2a93d2e5c54",
+      "official_amd64_manifest_file_sha256": "967306562700bc6f4bab7c247caf69892d77624b019ca510e86b4b00fc9c5584",
+      "nju_amd64_manifest_file_sha256": "967306562700bc6f4bab7c247caf69892d77624b019ca510e86b4b00fc9c5584"
+    },
+    "cache_action": {
+      "performed_by": "root",
+      "pull_source": "quay.nju.edu.cn/argoproj/argocd:v3.6.1",
+      "pull_method": "CRI pull",
+      "alias_tag": "quay.io/argoproj/argocd:v3.6.1",
+      "alias_method": "ctr -n k8s.io images tag",
+      "alias_tagged_only_after_digest_match": true,
+      "reported_status": "cached_and_tagged_by_root"
+    }
+  },
+  "redis": {
+    "values_reference": "ecr-public.aws.com/docker/library/redis:8.6.4-alpine",
+    "tag": "8.6.4-alpine",
+    "linux_amd64": {
+      "index_digest": "sha256:2cc044fc5a07c9b701f8f1255a309ae9ad7856e694ac03513bf3648c01e40763",
+      "manifest_digest": "sha256:c64af41b8fc06a2d9b8fde812dd781aa157bed6fcf8ae1656ad4e79f3f9fc9b1"
+    },
+    "dockerhub": {
+      "reference": "docker.io/library/redis:8.6.4-alpine",
+      "available": true,
+      "index_digest": "sha256:2cc044fc5a07c9b701f8f1255a309ae9ad7856e694ac03513bf3648c01e40763",
+      "amd64_manifest_digest": "sha256:c64af41b8fc06a2d9b8fde812dd781aa157bed6fcf8ae1656ad4e79f3f9fc9b1"
+    },
+    "ecr_public": {
+      "reference": "ecr-public.aws.com/docker/library/redis:8.6.4-alpine",
+      "manifest_available": true,
+      "index_digest": "sha256:2cc044fc5a07c9b701f8f1255a309ae9ad7856e694ac03513bf3648c01e40763",
+      "amd64_manifest_digest": "sha256:c64af41b8fc06a2d9b8fde812dd781aa157bed6fcf8ae1656ad4e79f3f9fc9b1",
+      "index_bytes_identical_to_dockerhub": true
+    },
+    "daocloud_mirror": {
+      "reference": "docker.m.daocloud.io/library/redis:8.6.4-alpine",
+      "available": true,
+      "http_status": 200,
+      "index_digest": "sha256:2cc044fc5a07c9b701f8f1255a309ae9ad7856e694ac03513bf3648c01e40763",
+      "amd64_manifest_digest": "sha256:c64af41b8fc06a2d9b8fde812dd781aa157bed6fcf8ae1656ad4e79f3f9fc9b1",
+      "index_bytes_identical_to_dockerhub": true
+    },
+    "image_availability_verified": true,
+    "cache_status": "not_cached_daocloud_pull_timed_out",
+    "recommended_registry": "docker.m.daocloud.io",
+    "recommended_reference": "docker.m.daocloud.io/library/redis:8.6.4-alpine",
+    "canonical_reference": "docker.io/library/redis:8.6.4-alpine",
+    "recommended_pin_index_digest": "sha256:2cc044fc5a07c9b701f8f1255a309ae9ad7856e694ac03513bf3648c01e40763",
+    "recommended_pin_amd64_digest": "sha256:c64af41b8fc06a2d9b8fde812dd781aa157bed6fcf8ae1656ad4e79f3f9fc9b1",
+    "note": "Image identity is verified against Docker Hub official and ECR Public; values.yaml was not edited. The daocloud pull timed out, so Redis is not confirmed cached."
+  },
+  "verification": {
+    "method": "Registry v2 manifest/index API over HTTPS; multi-arch index and linux/amd64 child manifests compared by digest and file SHA-256.",
+    "argocd_verified_before_alias_tag": true,
+    "redis_manifests_only_no_pull": true
+  }
+}

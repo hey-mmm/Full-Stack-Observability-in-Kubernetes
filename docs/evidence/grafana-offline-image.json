@@ -1,0 +1,18 @@
+{
+  "image": "docker.io/grafana/grafana:13.3.1-distroless",
+  "platform": "linux/amd64",
+  "source": "docker.m.daocloud.io",
+  "official_source": "registry-1.docker.io",
+  "tls_verified": true,
+  "official_index_digest": "sha256:54e297ac67e2b72572f926892f4e06074dc4f79f2a56ed9a9ca9a88a46f28733",
+  "daocloud_index_digest": "sha256:54e297ac67e2b72572f926892f4e06074dc4f79f2a56ed9a9ca9a88a46f28733",
+  "dockerhub_index_match": true,
+  "selected_manifest_digest": "sha256:7ad5b07bc88c6dad4bb3250a0867b0abe4b0ca2522868c48ab60c990c0e694f5",
+  "selected_manifest_size": 5522,
+  "config_digest": "sha256:34501eea506419a2cc4da2e9cf980617c4472b98d06f310da331334ff0ab7a65",
+  "layer_count": 25,
+  "layers_total_bytes": 488488215,
+  "tar_bytes": 488550400,
+  "tar_sha256": "d5a4a110c20f5da6fbc9832706d1c25eb6caa18d9eae4cfb0b190dd9f4e48181",
+  "all_blob_digests_verified": true
+}

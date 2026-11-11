@@ -1,5 +1,8 @@
 deploymentMode: Monolithic
 fullnameOverride: loki
+sidecar:
+  rules:
+    enabled: false
 loki:
   auth_enabled: false
   image:

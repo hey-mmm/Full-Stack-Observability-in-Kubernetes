@@ -42,19 +42,71 @@ alloy:
       readOnly: true
   configMap:
     create: true
-    content: "discovery.kubernetes \"pods\" {\n  role = \"pod\"\n  selectors {\n    role = \"pod\"\n    field = \"spec.nodeName=\"\
-      \ + sys.env(\"NODE_NAME\")\n  }\n}\n\ndiscovery.relabel \"pod_logs\" {\n  targets = discovery.kubernetes.pods.targets\n\
-      \n  rule {\n    source_labels = [\"__meta_kubernetes_namespace\"]\n    target_label  = \"namespace\"\n  }\n  rule {\n\
-      \    source_labels = [\"__meta_kubernetes_pod_name\"]\n    target_label  = \"pod\"\n  }\n  rule {\n    source_labels\
-      \ = [\"__meta_kubernetes_pod_node_name\"]\n    target_label  = \"node\"\n  }\n  rule {\n    source_labels = [\"__meta_kubernetes_pod_container_name\"\
-      ]\n    target_label  = \"container\"\n  }\n  rule {\n    source_labels = [\"__meta_kubernetes_pod_uid\", \"__meta_kubernetes_pod_container_name\"\
-      ]\n    separator     = \"/\"\n    replacement   = \"/var/log/pods/*$1/*.log\"\n    target_label  = \"__path__\"\n  }\n\
-      \  # Drop discovery metadata. Only the four requested labels and\n  # __path__ survive; the JSON body (including request_id)\
-      \ is untouched.\n  rule {\n    action = \"labeldrop\"\n    regex  = \"__meta_.*\"\n  }\n}\n\nloki.source.file \"pods\"\
-      \ {\n  targets    = discovery.relabel.pod_logs.output\n  forward_to = [loki.process.pods.receiver]\n}\n\nloki.process\
-      \ \"pods\" {\n  stage.cri {}\n  stage.json {\n    expressions = { level = \"level\", event = \"event\", status = \"\
-      status\", request_id = \"request_id\" }\n  }\n  forward_to = [loki.write.default.receiver]\n}\n\nloki.write \"default\"\
-      \ {\n  endpoint {\n    url = \"http://loki.logging.svc.cluster.local:3100/loki/api/v1/push\"\n  }\n}\n"
+    content: |
+      discovery.kubernetes "pods" {
+        role = "pod"
+        selectors {
+          role = "pod"
+          field = "spec.nodeName=" + sys.env("NODE_NAME")
+        }
+      }
+
+      discovery.relabel "pod_logs" {
+        targets = discovery.kubernetes.pods.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_node_name"]
+          target_label  = "node"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label  = "container"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
+          separator     = "/"
+          replacement   = "/var/log/pods/*$1/*.log"
+          target_label  = "__path__"
+        }
+      // Drop discovery metadata. Only the four requested labels and
+      // __path__ survive; the JSON body (including request_id) is untouched.
+        rule {
+          action = "labeldrop"
+          regex  = "__meta_.*"
+        }
+      }
+
+      local.file_match "pods" {
+        path_targets = discovery.relabel.pod_logs.output
+        sync_period  = "5s"
+      }
+
+      loki.source.file "pods" {
+        targets    = local.file_match.pods.targets
+        forward_to = [loki.process.pods.receiver]
+      }
+
+      loki.process "pods" {
+        stage.cri {}
+        stage.json {
+          expressions = { level = "level", event = "event", status = "status", request_id = "request_id" }
+        }
+        forward_to = [loki.write.default.receiver]
+      }
+
+      loki.write "default" {
+        endpoint {
+          url = "http://loki.logging.svc.cluster.local:3100/loki/api/v1/push"
+        }
+      }
   extraEnv:
   - name: NODE_NAME
     valueFrom:

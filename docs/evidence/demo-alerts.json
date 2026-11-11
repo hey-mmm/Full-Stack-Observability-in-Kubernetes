@@ -1,0 +1,250 @@
+{
+  "events": [
+    {
+      "received_at": "2026-11-11T12:10:43.132Z",
+      "receiver": "local-json-webhook",
+      "groupKey": "{}:{alertname=\"DemoHighErrorRate\"}",
+      "truncatedAlerts": 0,
+      "alert": {
+        "status": "firing",
+        "labels": {
+          "alertname": "DemoHighErrorRate",
+          "cluster": "lab",
+          "drill": "true",
+          "prometheus": "monitoring/monitoring-kube-prometheus-prometheus",
+          "service": "demo",
+          "severity": "warning"
+        },
+        "annotations": {
+          "description": "The 1-minute 5xx ratio for route /work has exceeded 5% for 1 minute. Check the demo Deployment and the request_id in Loki before changing anything.",
+          "summary": "Demo /work 5xx error ratio is above 5%"
+        },
+        "startsAt": "2026-11-11T12:10:33.113Z",
+        "endsAt": "0001-01-01T00:00:00Z",
+        "generatorURL": "http://monitoring-kube-prometheus-prometheus.monitoring:9090/graph?g0.expr=%28%28sum%28rate%28demo_http_requests_total%7Bnamespace%3D%22demo%22%2Croute%3D%22%2Fwork%22%2Cstatus%3D~%225..%22%7D%5B1m%5D%29%29+or+on+%28%29+vector%280%29%29+%2F+sum%28rate%28demo_http_requests_total%7Bnamespace%3D%22demo%22%2Croute%3D%22%2Fwork%22%7D%5B1m%5D%29%29%29+%3E+0.05+and+on+%28%29+%28sum%28rate%28demo_http_requests_total%7Bnamespace%3D%22demo%22%2Croute%3D%22%2Fwork%22%7D%5B1m%5D%29%29+%3E+0%29&g0.tab=1",
+        "fingerprint": "1a5f72e6c13a80ff"
+      }
+    },
+    {
+      "received_at": "2026-11-11T12:14:43.154Z",
+      "receiver": "local-json-webhook",
+      "groupKey": "{}:{alertname=\"DemoHighErrorRate\"}",
+      "truncatedAlerts": 0,
+      "alert": {
+        "status": "resolved",
+        "labels": {
+          "alertname": "DemoHighErrorRate",
+          "cluster": "lab",
+          "drill": "true",
+          "prometheus": "monitoring/monitoring-kube-prometheus-prometheus",
+          "service": "demo",
+          "severity": "warning"
+        },
+        "annotations": {
+          "description": "The 1-minute 5xx ratio for route /work has exceeded 5% for 1 minute. Check the demo Deployment and the request_id in Loki before changing anything.",
+          "summary": "Demo /work 5xx error ratio is above 5%"
+        },
+        "startsAt": "2026-11-11T12:10:33.113Z",
+        "endsAt": "2026-11-11T12:14:03.113Z",
+        "generatorURL": "http://monitoring-kube-prometheus-prometheus.monitoring:9090/graph?g0.expr=%28%28sum%28rate%28demo_http_requests_total%7Bnamespace%3D%22demo%22%2Croute%3D%22%2Fwork%22%2Cstatus%3D~%225..%22%7D%5B1m%5D%29%29+or+on+%28%29+vector%280%29%29+%2F+sum%28rate%28demo_http_requests_total%7Bnamespace%3D%22demo%22%2Croute%3D%22%2Fwork%22%7D%5B1m%5D%29%29%29+%3E+0.05+and+on+%28%29+%28sum%28rate%28demo_http_requests_total%7Bnamespace%3D%22demo%22%2Croute%3D%22%2Fwork%22%7D%5B1m%5D%29%29+%3E+0%29&g0.tab=1",
+        "fingerprint": "1a5f72e6c13a80ff"
+      }
+    },
+    {
+      "received_at": "2026-11-11T12:18:43.140Z",
+      "receiver": "local-json-webhook",
+      "groupKey": "{}:{alertname=\"DemoHighErrorRate\"}",
+      "truncatedAlerts": 0,
+      "alert": {
+        "status": "firing",
+        "labels": {
+          "alertname": "DemoHighErrorRate",
+          "cluster": "lab",
+          "drill": "true",
+          "prometheus": "monitoring/monitoring-kube-prometheus-prometheus",
+          "service": "demo",
+          "severity": "warning"
+        },
+        "annotations": {
+          "description": "The 1-minute 5xx ratio for route /work has exceeded 5% for 1 minute. Check the demo Deployment and the request_id in Loki before changing anything.",
+          "summary": "Demo /work 5xx error ratio is above 5%"
+        },
+        "startsAt": "2026-11-11T12:18:33.113Z",
+        "endsAt": "0001-01-01T00:00:00Z",
+        "generatorURL": "http://monitoring-kube-prometheus-prometheus.monitoring:9090/graph?g0.expr=%28%28sum%28rate%28demo_http_requests_total%7Bnamespace%3D%22demo%22%2Croute%3D%22%2Fwork%22%2Cstatus%3D~%225..%22%7D%5B1m%5D%29%29+or+on+%28%29+vector%280%29%29+%2F+sum%28rate%28demo_http_requests_total%7Bnamespace%3D%22demo%22%2Croute%3D%22%2Fwork%22%7D%5B1m%5D%29%29%29+%3E+0.05+and+on+%28%29+%28sum%28rate%28demo_http_requests_total%7Bnamespace%3D%22demo%22%2Croute%3D%22%2Fwork%22%7D%5B1m%5D%29%29+%3E+0%29&g0.tab=1",
+        "fingerprint": "1a5f72e6c13a80ff"
+      }
+    },
+    {
+      "received_at": "2026-11-11T12:21:43.167Z",
+      "receiver": "local-json-webhook",
+      "groupKey": "{}:{alertname=\"DemoHighErrorRate\"}",
+      "truncatedAlerts": 0,
+      "alert": {
+        "status": "resolved",
+        "labels": {
+          "alertname": "DemoHighErrorRate",
+          "cluster": "lab",
+          "drill": "true",
+          "prometheus": "monitoring/monitoring-kube-prometheus-prometheus",
+          "service": "demo",
+          "severity": "warning"
+        },
+        "annotations": {
+          "description": "The 1-minute 5xx ratio for route /work has exceeded 5% for 1 minute. Check the demo Deployment and the request_id in Loki before changing anything.",
+          "summary": "Demo /work 5xx error ratio is above 5%"
+        },
+        "startsAt": "2026-11-11T12:18:33.113Z",
+        "endsAt": "2026-11-11T12:21:33.113Z",
+        "generatorURL": "http://monitoring-kube-prometheus-prometheus.monitoring:9090/graph?g0.expr=%28%28sum%28rate%28demo_http_requests_total%7Bnamespace%3D%22demo%22%2Croute%3D%22%2Fwork%22%2Cstatus%3D~%225..%22%7D%5B1m%5D%29%29+or+on+%28%29+vector%280%29%29+%2F+sum%28rate%28demo_http_requests_total%7Bnamespace%3D%22demo%22%2Croute%3D%22%2Fwork%22%7D%5B1m%5D%29%29%29+%3E+0.05+and+on+%28%29+%28sum%28rate%28demo_http_requests_total%7Bnamespace%3D%22demo%22%2Croute%3D%22%2Fwork%22%7D%5B1m%5D%29%29+%3E+0%29&g0.tab=1",
+        "fingerprint": "1a5f72e6c13a80ff"
+      }
+    },
+    {
+      "received_at": "2026-11-11T13:26:43.138Z",
+      "receiver": "local-json-webhook",
+      "groupKey": "{}:{alertname=\"DemoP95LatencyHigh\"}",
+      "truncatedAlerts": 0,
+      "alert": {
+        "status": "firing",
+        "labels": {
+          "alertname": "DemoP95LatencyHigh",
+          "cluster": "lab",
+          "drill": "true",
+          "prometheus": "monitoring/monitoring-kube-prometheus-prometheus",
+          "service": "demo",
+          "severity": "warning"
+        },
+        "annotations": {
+          "description": "The 1-minute p95 latency for route /work has exceeded 500 ms for 1 minute. Confirm whether the latency was injected.",
+          "summary": "Demo /work p95 latency is above 500 ms"
+        },
+        "startsAt": "2026-11-11T13:26:33.113Z",
+        "endsAt": "0001-01-01T00:00:00Z",
+        "generatorURL": "http://monitoring-kube-prometheus-prometheus.monitoring:9090/graph?g0.expr=histogram_quantile%280.95%2C+sum+by+%28le%29+%28rate%28demo_http_request_duration_seconds_bucket%7Bnamespace%3D%22demo%22%2Croute%3D%22%2Fwork%22%7D%5B1m%5D%29%29%29+%3E+0.5&g0.tab=1",
+        "fingerprint": "b0d8b956d800b883"
+      }
+    },
+    {
+      "received_at": "2026-11-11T13:33:27.662Z",
+      "receiver": "local-json-webhook",
+      "groupKey": "{}:{alertname=\"DemoPodCrashLooping\", namespace=\"demo\", pod=\"demo-6d485d99d4-k6t59\"}",
+      "truncatedAlerts": 0,
+      "alert": {
+        "status": "firing",
+        "labels": {
+          "alertname": "DemoPodCrashLooping",
+          "cluster": "lab",
+          "container": "demo-service",
+          "drill": "true",
+          "endpoint": "http",
+          "instance": "10.244.171.73:8080",
+          "job": "kube-state-metrics",
+          "namespace": "demo",
+          "pod": "demo-6d485d99d4-k6t59",
+          "prometheus": "monitoring/monitoring-kube-prometheus-prometheus",
+          "service": "demo",
+          "severity": "critical",
+          "uid": "b6d436a3-2616-4d29-bbc9-99b318b047a3"
+        },
+        "annotations": {
+          "description": "Container demo-service in namespace demo restarted more than 3 times in 10 minutes. Inspect the current Pod logs (startup_failed is a known deliberate drill) and events.",
+          "summary": "Demo container is restarting repeatedly"
+        },
+        "startsAt": "2026-11-11T13:33:03.113Z",
+        "endsAt": "0001-01-01T00:00:00Z",
+        "generatorURL": "http://monitoring-kube-prometheus-prometheus.monitoring:9090/graph?g0.expr=increase%28kube_pod_container_status_restarts_total%7Bcontainer%3D%22demo-service%22%2Cnamespace%3D%22demo%22%7D%5B10m%5D%29+%3E+3&g0.tab=1",
+        "fingerprint": "6d58ffe01ae2a956"
+      }
+    },
+    {
+      "received_at": "2026-11-11T13:34:37.709Z",
+      "receiver": "local-json-webhook",
+      "groupKey": "{}:{alertname=\"DemoP95LatencyHigh\"}",
+      "truncatedAlerts": 0,
+      "alert": {
+        "status": "resolved",
+        "labels": {
+          "alertname": "DemoP95LatencyHigh",
+          "cluster": "lab",
+          "drill": "true",
+          "prometheus": "monitoring/monitoring-kube-prometheus-prometheus",
+          "service": "demo",
+          "severity": "warning"
+        },
+        "annotations": {
+          "description": "The 1-minute p95 latency for route /work has exceeded 500 ms for 1 minute. Confirm whether the latency was injected.",
+          "summary": "Demo /work p95 latency is above 500 ms"
+        },
+        "startsAt": "2026-11-11T13:26:33.113Z",
+        "endsAt": "2026-11-11T13:34:03.113Z",
+        "generatorURL": "http://monitoring-kube-prometheus-prometheus.monitoring:9090/graph?g0.expr=histogram_quantile%280.95%2C+sum+by+%28le%29+%28rate%28demo_http_request_duration_seconds_bucket%7Bnamespace%3D%22demo%22%2Croute%3D%22%2Fwork%22%7D%5B1m%5D%29%29%29+%3E+0.5&g0.tab=1",
+        "fingerprint": "b0d8b956d800b883"
+      }
+    },
+    {
+      "received_at": "2026-11-11T13:37:27.649Z",
+      "receiver": "local-json-webhook",
+      "groupKey": "{}:{alertname=\"DemoPodCrashLooping\", namespace=\"demo\", pod=\"demo-6d485d99d4-rznx7\"}",
+      "truncatedAlerts": 0,
+      "alert": {
+        "status": "firing",
+        "labels": {
+          "alertname": "DemoPodCrashLooping",
+          "cluster": "lab",
+          "container": "demo-service",
+          "drill": "true",
+          "endpoint": "http",
+          "instance": "10.244.171.73:8080",
+          "job": "kube-state-metrics",
+          "namespace": "demo",
+          "pod": "demo-6d485d99d4-rznx7",
+          "prometheus": "monitoring/monitoring-kube-prometheus-prometheus",
+          "service": "demo",
+          "severity": "critical",
+          "uid": "ad329b90-c853-4caa-b016-fcca45d8769c"
+        },
+        "annotations": {
+          "description": "Container demo-service in namespace demo restarted more than 3 times in 10 minutes. Inspect the current Pod logs (startup_failed is a known deliberate drill) and events.",
+          "summary": "Demo container is restarting repeatedly"
+        },
+        "startsAt": "2026-11-11T13:37:03.113Z",
+        "endsAt": "0001-01-01T00:00:00Z",
+        "generatorURL": "http://monitoring-kube-prometheus-prometheus.monitoring:9090/graph?g0.expr=increase%28kube_pod_container_status_restarts_total%7Bcontainer%3D%22demo-service%22%2Cnamespace%3D%22demo%22%7D%5B10m%5D%29+%3E+3&g0.tab=1",
+        "fingerprint": "a33414e5cebdff48"
+      }
+    },
+    {
+      "received_at": "2026-11-11T13:39:27.697Z",
+      "receiver": "local-json-webhook",
+      "groupKey": "{}:{alertname=\"DemoPodCrashLooping\", namespace=\"demo\", pod=\"demo-6d485d99d4-k6t59\"}",
+      "truncatedAlerts": 0,
+      "alert": {
+        "status": "resolved",
+        "labels": {
+          "alertname": "DemoPodCrashLooping",
+          "cluster": "lab",
+          "container": "demo-service",
+          "drill": "true",
+          "endpoint": "http",
+          "instance": "10.244.171.73:8080",
+          "job": "kube-state-metrics",
+          "namespace": "demo",
+          "pod": "demo-6d485d99d4-k6t59",
+          "prometheus": "monitoring/monitoring-kube-prometheus-prometheus",
+          "service": "demo",
+          "severity": "critical",
+          "uid": "b6d436a3-2616-4d29-bbc9-99b318b047a3"
+        },
+        "annotations": {
+          "description": "Container demo-service in namespace demo restarted more than 3 times in 10 minutes. Inspect the current Pod logs (startup_failed is a known deliberate drill) and events.",
+          "summary": "Demo container is restarting repeatedly"
+        },
+        "startsAt": "2026-11-11T13:33:03.113Z",
+        "endsAt": "2026-11-11T13:39:03.113Z",
+        "generatorURL": "http://monitoring-kube-prometheus-prometheus.monitoring:9090/graph?g0.expr=increase%28kube_pod_container_status_restarts_total%7Bcontainer%3D%22demo-service%22%2Cnamespace%3D%22demo%22%7D%5B10m%5D%29+%3E+3&g0.tab=1",
+        "fingerprint": "6d58ffe01ae2a956"
+      }
+    }
+  ]
+}
