@@ -1,0 +1,57 @@
+---
+- name: Stage 2 - Deploy the verified demo image before GitOps takes ownership
+  hosts: kube_control_plane
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../group_vars/all.yml
+  vars:
+    ansible_python_interpreter: /home/myt/.venvs/ansible/bin/python
+    demo_repo_root: "{{ playbook_dir }}/../.."
+    demo_values: "{{ lookup('ansible.builtin.file', demo_repo_root ~ '/gitops/demo/values.yaml') | from_yaml }}"
+  environment: "{{ lab_proxy_environment | combine({'KUBECONFIG': kubeconfig_path}) }}"
+  roles:
+    - helm
+  tasks:
+    - name: Require an actual CI image
+      ansible.builtin.assert:
+        that:
+          - demo_values.image.repository == 'ghcr.io/hey-mmm/observability-demo'
+          - demo_values.image.tag is match('^sha-[0-9a-f]{40}$')
+          - demo_values.gitSha == demo_values.image.tag[4:]
+
+    - name: Check whether Argo CD already owns the demo
+      ansible.builtin.command:
+        argv: [kubectl, --request-timeout=15s, -n, argocd, get, applications.argoproj.io, demo, -o, name]
+      register: demo_argo_application
+      changed_when: false
+      failed_when: false
+
+    - name: Stop direct Helm deployment after GitOps adoption
+      ansible.builtin.assert:
+        that: demo_argo_application.rc != 0
+        fail_msg: Application demo exists. Update Git desired state; Argo CD now owns this application.
+
+    - name: Create the demo namespace
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: demo
+            labels:
+              app.kubernetes.io/part-of: observability-demo
+              app.kubernetes.io/managed-by: ansible
+
+    - name: Install the demo chart and wait for healthy probes
+      kubernetes.core.helm:
+        kubeconfig: "{{ kubeconfig_path }}"
+        name: demo
+        chart_ref: "{{ demo_repo_root }}/charts/demo"
+        release_namespace: demo
+        release_values: "{{ demo_values }}"
+        wait: true
+        timeout: 5m
+        history_max: 3

@@ -1,0 +1,22 @@
+C:\Users\MYT\Documents\Codex\2026-11-11\codex-config-toml-2\work\verification-venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+  from starlette.testclient import TestClient as TestClient  # noqa
+test_fault_config_is_immutable (test_main.DemoServiceTests.test_fault_config_is_immutable) ... ok
+{"timestamp":"2026-11-11T11:02:05.442Z","level":"INFO","event":"startup","app_version":"test-1.2.3","git_sha":"0123456789abcdef","app_env":"test","python_version":"3.14.2","pid":28016,"error_rate":0.0,"latency_ms":0}
+{"timestamp":"2026-11-11T11:02:05.447Z","level":"INFO","event":"shutdown","pid":28016}
+test_health_readiness_and_version (test_main.DemoServiceTests.test_health_readiness_and_version) ... ok
+test_injected_failure_and_latency (test_main.DemoServiceTests.test_injected_failure_and_latency) ... ok
+test_invalid_error_rate_refuses_startup (test_main.DemoServiceTests.test_invalid_error_rate_refuses_startup) ... ok
+{"timestamp":"2026-11-11T11:02:05.496Z","level":"INFO","event":"startup","app_version":"test-1.2.3","git_sha":"0123456789abcdef","app_env":"test","python_version":"3.14.2","pid":28016,"error_rate":0.0,"latency_ms":0}
+{"timestamp":"2026-11-11T11:02:05.504Z","level":"INFO","event":"request","path":"/work","route":"/work","method":"GET","status":200,"duration_seconds":0.000202,"request_id":"6168ebc4d87f492bb9b8b501244ae9d5"}
+{"timestamp":"2026-11-11T11:02:05.506Z","level":"INFO","event":"shutdown","pid":28016}
+test_probes_and_unknown_paths_do_not_create_sli_labels (test_main.DemoServiceTests.test_probes_and_unknown_paths_do_not_create_sli_labels) ... ok
+{"timestamp":"2026-11-11T11:02:05.509Z","level":"INFO","event":"startup","app_version":"test-1.2.3","git_sha":"0123456789abcdef","app_env":"test","python_version":"3.14.2","pid":28016,"error_rate":0.0,"latency_ms":0}
+{"timestamp":"2026-11-11T11:02:05.512Z","level":"INFO","event":"shutdown","pid":28016}
+test_readiness_returns_503_while_liveness_stays_200 (test_main.DemoServiceTests.test_readiness_returns_503_while_liveness_stays_200) ... ok
+test_startup_failure_logs_and_exits (test_main.DemoServiceTests.test_startup_failure_logs_and_exits) ... ok
+test_work_success_logs_json_and_counts_fixed_route (test_main.DemoServiceTests.test_work_success_logs_json_and_counts_fixed_route) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.103s
+
+OK

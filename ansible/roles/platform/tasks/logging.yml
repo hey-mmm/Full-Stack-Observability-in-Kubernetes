@@ -57,22 +57,36 @@
     group: root
     mode: "0600"
 
-- name: Add the grafana-community Helm repository for Loki
-  kubernetes.core.helm_repository:
-    name: "{{ platform_loki_chart_repo }}"
-    repo_url: https://grafana-community.github.io/helm-charts
-    force_update: false
+- name: Ensure verified chart cache directory
+  ansible.builtin.file:
+    path: /opt/observability-charts
+    state: directory
+    mode: '0755'
+- name: Cache checksum-pinned loki chart
+  ansible.builtin.get_url:
+    url: https://github.com/grafana-community/helm-charts/releases/download/loki-21.2.1/loki-21.2.1.tgz
+    dest: /opt/observability-charts/loki-21.2.1.tgz
+    checksum: sha256:618a5235aecd36d0977de9be221382d659c5ebf7d4ab4a7d85e0880e8824d517
+    timeout: 90
+    mode: '0644'
 
-- name: Add the grafana Helm repository for Alloy
-  kubernetes.core.helm_repository:
-    name: "{{ platform_alloy_chart_repo }}"
-    repo_url: https://grafana.github.io/helm-charts
-    force_update: false
+- name: Ensure verified chart cache directory
+  ansible.builtin.file:
+    path: /opt/observability-charts
+    state: directory
+    mode: '0755'
+- name: Cache checksum-pinned alloy chart
+  ansible.builtin.get_url:
+    url: https://github.com/grafana/helm-charts/releases/download/alloy-1.15.0/alloy-1.15.0.tgz
+    dest: /opt/observability-charts/alloy-1.15.0.tgz
+    checksum: sha256:2ecc96c05004cc01a45ab23cb390194ad5259ec9d02b42bf148d4468d013aaa3
+    timeout: 90
+    mode: '0644'
 
 - name: Deploy Loki 21.2.1 monolithic single-binary and wait for readiness
   kubernetes.core.helm:
     name: "{{ platform_loki_release }}"
-    chart_ref: "{{ platform_loki_chart_ref }}"
+    chart_ref: /opt/observability-charts/loki-21.2.1.tgz
     chart_version: "{{ platform_loki_chart_version }}"
     release_namespace: "{{ platform_logging_namespace }}"
     create_namespace: false
@@ -84,7 +98,7 @@
 - name: Deploy Alloy 1.15.0 log collector DaemonSet and wait for readiness
   kubernetes.core.helm:
     name: "{{ platform_alloy_release }}"
-    chart_ref: "{{ platform_alloy_chart_ref }}"
+    chart_ref: /opt/observability-charts/alloy-1.15.0.tgz
     chart_version: "{{ platform_alloy_chart_version }}"
     release_namespace: "{{ platform_logging_namespace }}"
     create_namespace: false

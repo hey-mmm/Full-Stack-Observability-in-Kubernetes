@@ -123,15 +123,23 @@
     owner: root
     group: root
     mode: '0600'
-- name: Add the prometheus-community Helm repository
-  kubernetes.core.helm_repository:
-    name: '{{ platform_kube_prometheus_chart_repo }}'
-    repo_url: https://prometheus-community.github.io/helm-charts
-    force_update: false
+- name: Ensure verified chart cache directory
+  ansible.builtin.file:
+    path: /opt/observability-charts
+    state: directory
+    mode: '0755'
+- name: Cache checksum-pinned kube-prometheus-stack chart
+  ansible.builtin.get_url:
+    url: https://github.com/prometheus-community/helm-charts/releases/download/kube-prometheus-stack-93.2.0/kube-prometheus-stack-93.2.0.tgz
+    dest: /opt/observability-charts/kube-prometheus-stack-93.2.0.tgz
+    checksum: sha256:562f451f4c0a5a5f51c3c7f7d28dc793e1a20e480e9543eaab4c8f64957e3680
+    timeout: 90
+    mode: '0644'
+
 - name: Deploy kube-prometheus-stack 93.2.0 and wait for readiness
   kubernetes.core.helm:
     name: '{{ platform_kube_prometheus_release }}'
-    chart_ref: '{{ platform_kube_prometheus_chart_ref }}'
+    chart_ref: /opt/observability-charts/kube-prometheus-stack-93.2.0.tgz
     chart_version: '{{ platform_kube_prometheus_chart_version }}'
     release_namespace: '{{ platform_monitoring_namespace }}'
     create_namespace: false

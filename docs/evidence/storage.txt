@@ -1,0 +1,13 @@
+== Stage 3/4 observability acceptance ==
+phase=storage namespaces=monitoring/logging/demo
+read-only: no delete/restart/apply operations
+[PASS] Kubernetes API /readyz
+node=master ready=true cpu=2 memory=3866404Ki
+node=worker ready=true cpu=4 memory=12115740Ki
+control-plane NoSchedule taint=present
+[PASS] 两节点 Ready，控制面保留 NoSchedule taint
+local-path default=true WaitForFirstConsumer=true reclaimPolicy=Delete
+[PASS] local-path StorageClass 参数正确且为默认类
+local-path provisioner available
+[PASS] local-path provisioner Deployment 可用
+acceptance summary: checks=4 passes=4 failures=0

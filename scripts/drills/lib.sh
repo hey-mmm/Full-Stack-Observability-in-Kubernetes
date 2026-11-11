@@ -136,6 +136,7 @@ select_service() {
 }
 
 start_port_forward() {
+  stop_port_forward
   if [[ -n "${DEMO_BASE_URL:-}" ]]; then
     BASE_URL="${DEMO_BASE_URL%/}"
     require_cmds curl
@@ -178,8 +179,14 @@ health_ok() {
 }
 
 wait_for_health() {
-  local timeout="${1:-60}" deadline=$((SECONDS + timeout))
+  local timeout="${1:-60}"
+  local deadline=$((SECONDS + timeout))
   while (( SECONDS < deadline )); do
+    # A Service port-forward stays attached to one Pod and exits when a
+    # rollout removes it. Reconnect to the replacement before probing again.
+    if [[ -z "${DEMO_BASE_URL:-}" && -n "${PF_PID:-}" ]] && ! kill -0 "$PF_PID" 2>/dev/null; then
+      start_port_forward || return 1
+    fi
     if health_ok; then
       return 0
     fi
@@ -242,9 +249,14 @@ query_alert_receiver() {
     return 0
   fi
 
-  verdict="$(python3 - "$body" <<'PY' 2>/dev/null || true
+  verdict="$(python3 - "$body" "${FAULT:-}" "${STARTED_UTC:-}" <<'PY' 2>/dev/null || true
 import json
 import sys
+from datetime import datetime
+
+expected = {"error": "DemoHighErrorRate", "latency": "DemoP95LatencyHigh",
+            "startup-failure": "DemoPodCrashLooping"}.get(sys.argv[2])
+started = datetime.fromisoformat(sys.argv[3].replace("Z", "+00:00")) if sys.argv[3] else None
 
 try:
     with open(sys.argv[1], encoding="utf-8") as fh:
@@ -264,6 +276,12 @@ def matches(alerts):
         if alert.get("status", "firing") != "firing":
             continue
         labels = alert.get("labels") or {}
+        if expected and labels.get("alertname") != expected:
+            continue
+        if started:
+            first = alert.get("startsAt")
+            if not first or datetime.fromisoformat(first.replace("Z", "+00:00")) < started:
+                continue
         if (
             labels.get("namespace") == "demo"
             or labels.get("deployment") == "demo"

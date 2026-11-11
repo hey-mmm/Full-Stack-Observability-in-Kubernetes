@@ -1,0 +1,89 @@
+# Pinned values for argo-cd chart 10.17.2 / Argo CD v3.6.1 (2026-11-11).
+# Scope: one demo Application only. Non-HA, ClusterIP, TLS, no Ingress/NodePort.
+# Total limits for the four running components:
+#   CPU 1700m; memory 2176Mi (controller 768Mi + repo 768Mi + server 512Mi + redis 128Mi).
+# Total requests: CPU 350m; memory 832Mi. This leaves the 12GiB worker budget
+# for the existing Ansible-managed platform workloads.
+
+global:
+  image:
+    repository: quay.io/argoproj/argocd
+    tag: v3.6.1
+    imagePullPolicy: IfNotPresent
+  logging:
+    format: text
+    level: info
+
+configs:
+  params:
+    # Keep the server on HTTPS. Do not add --insecure or set this to true.
+    server.insecure: false
+
+controller:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 768Mi
+
+repoServer:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 768Mi
+
+server:
+  replicas: 1
+  service:
+    type: ClusterIP
+  ingress:
+    enabled: false
+  httproute:
+    enabled: false
+  grpcroute:
+    enabled: false
+  listenerset:
+    enabled: false
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+dex:
+  enabled: false
+
+notifications:
+  enabled: false
+
+# argo-helm has rendered the ApplicationSet controller unconditionally since
+# chart 6.9.0 and exposes no applicationSet.enabled switch. replicas: 0 is the
+# only chart-supported runtime disable: no ApplicationSet pod is scheduled.
+# Its CRD remains installed by the chart. See docs/argocd-setup.md.
+applicationSet:
+  replicas: 0
+
+redis:
+  enabled: true
+  image:
+    repository: ecr-public.aws.com/docker/library/redis
+    tag: 8.6.4-alpine
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+redis-ha:
+  enabled: false

@@ -1,0 +1,7 @@
+# {{ containerd_registry_managed_marker }}.
+# Pull-only mirror: tag -> digest resolution stays with the official server below.
+# skip_verify defaults to false; TLS verification is deliberately left enabled.
+server = "{{ containerd_registry_servers[item.key] }}"
+
+[host."{{ item.value }}"]
+  capabilities = ["pull"]

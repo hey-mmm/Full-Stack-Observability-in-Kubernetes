@@ -1,0 +1,113 @@
+# Stage 1 cluster acceptance evidence
+
+Date: 2026-11-11 19:15 CST
+Cluster: master 11.0.1.10 (control-plane), worker 11.0.1.11
+Kubernetes v1.37.2, containerd 2.3.6, Calico, CoreDNS
+Command: sudo env KUBECONFIG=/etc/kubernetes/admin.conf bash scripts/acceptance/cluster.sh
+Result: exit 0, 33 PASS / 0 FAIL
+
+## Root cause of the previous 32 PASS / 1 FAIL
+
+Failing check: "HTTP through DNS and ClusterIP Service from master Pod to worker Pod".
+The failure was hidden by `2>/dev/null` in the retry loop. Reproducing with a
+preserved namespace exposed the real wget stderr:
+
+    Connecting to netcheck.observability-acceptance-65851.svc.cluster.local:8080 (198.18.0.190:8080)
+    wget: error getting response
+
+198.18.0.190 is not a cluster address. The Service itself was healthy:
+
+- Service selector netcheck-role=worker, ClusterIP 10.103.25.73.
+- EndpointSlice netcheck-hvvwm: 10.244.171.67:8080, ready=true, serving=true.
+- Worker Pod httpd listening on :8080; wget from the worker Pod to 127.0.0.1:8080 returned network-ok.
+- master -> worker Pod IP HTTP (http://10.244.171.67:8080) returned network-ok.
+- master -> Service ClusterIP HTTP (http://10.103.25.73:8080) returned network-ok.
+- `nslookup netcheck.<ns>.svc.cluster.local` from the master Pod returned 10.103.25.73.
+- kube-proxy ConfigMap mode is empty (default) and the pod logs "Using iptables Proxier";
+  the KUBE-SEP rule for this Service DNATs to 10.244.171.67:8080. No proxy/nft defect.
+
+The divergence is in name resolution. Pod /etc/resolv.conf inherited the node
+search domain:
+
+    search <ns>.svc.cluster.local svc.cluster.local cluster.local localdomain
+    nameserver 10.96.0.10
+    options ndots:5
+
+Because the fully qualified name has 4 dots (< ndots:5), glibc tries the search
+suffixes first, including:
+
+    netcheck.<ns>.svc.cluster.local.localdomain
+
+That name leaves the cluster.local zone, so CoreDNS forwards it to the node
+upstream 11.0.1.2, a fake-IP/proxy resolver that answers non-existent names
+with an address instead of NXDOMAIN. The bogus answer won before the absolute
+name was tried:
+
+    nslookup netcheck.<ns>.svc.cluster.local.localdomain  -> 198.18.0.190
+    nslookup netcheck.<ns>.svc.cluster.local              -> 10.103.25.73
+    wget http://netcheck.<ns>.svc.cluster.local.:8080     -> 10.103.25.73, network-ok
+
+This broke any in-cluster FQDN lookup with fewer than 5 dots, not just the test.
+
+## Fix applied (Ansible reproducible)
+
+Removed the stale `localdomain` search domain from /etc/resolv.conf on master and
+worker (backup /etc/resolv.conf.bak-pre-localdomain-fix). systemd-resolved
+regenerates /run/systemd/resolve/resolv.conf, which kubelet uses
+(KubeletConfiguration resolvConf), so new Pods receive only the cluster search
+domains.
+
+- ansible/roles/common/tasks/main.yml: remove the localdomain search entry,
+  notify the handler, and fail if it reappears.
+- ansible/roles/common/handlers/main.yml: restart systemd-resolved.
+
+Verification after the fix, fresh Pod on master:
+
+    search dnsfix-probe.svc.cluster.local svc.cluster.local cluster.local
+    Connecting to netcheck.<ns>.svc.cluster.local:8080 (10.103.25.73:8080)
+    network-ok
+
+External resolution through the lab proxy still works. The acceptance script was
+not changed (guest and repo copies have the same MD5); no namespace, taint,
+iptables or cluster state outside the temporary test namespace was modified.
+
+## Acceptance log
+
+== Stage 1 cluster acceptance ==
+kubeconfig=/etc/kubernetes/admin.conf namespace=observability-acceptance-72283 test_image=busybox:1.36.1
+[PASS] API /readyz
+[PASS] node count is 2
+[PASS] expected node master exists
+[PASS] expected node worker exists
+[PASS] node master is Ready
+[PASS] node master runtime=containerd://2.3.6
+[PASS] node worker is Ready
+[PASS] node worker runtime=containerd://2.3.6
+[PASS] node master InternalIP=11.0.1.10
+[PASS] node worker InternalIP=11.0.1.11
+[PASS] control-plane pod kube-apiserver is Ready
+[PASS] control-plane pod kube-controller-manager is Ready
+[PASS] control-plane pod kube-scheduler is Ready
+[PASS] control-plane pod etcd is Ready
+[PASS] kube-proxy DaemonSet is ready
+[PASS] calico-node DaemonSet is ready
+[PASS] calico-kube-controllers is ready
+[PASS] CoreDNS is ready
+[PASS] kubernetes Service ClusterIP=10.96.0.1
+[PASS] kube-dns ClusterIP=10.96.0.10
+[PASS] master control-plane taint is preserved
+[PASS] calico-node tolerates the control-plane taint
+[PASS] kubeadm podSubnet is 10.244.0.0/16
+[PASS] Calico default IPv4 IPPool=10.244.0.0/16
+[PASS] created temporary acceptance namespace observability-acceptance-72283
+[PASS] submitted temporary cross-node test Pods
+[PASS] temporary test Pods are Ready
+[PASS] Pod IPs allocated: master=10.244.219.73, worker=10.244.171.68
+[PASS] cluster DNS resolves kubernetes.default.svc.cluster.local
+[PASS] cross-node Pod network master -> worker
+[PASS] cross-node Pod network worker -> master
+[PASS] HTTP through DNS and ClusterIP Service from master Pod to worker Pod
+[PASS] HTTP from worker Pod to master Pod
+
+== Summary: passes=33, failures=0 ==
+Stage 1 acceptance PASSED.

@@ -1,0 +1,24 @@
+---
+# 空字符串表示 containerd 直连，不创建代理 drop-in。
+containerd_http_proxy: ""
+
+# 无论是否启用代理都保留集群内部直连范围，避免节点/Pod/Service 流量绕行代理。
+# .nju.edu.cn 为镜像加速域名，直连镜像站；官方 registry 的 metadata/tag 解析仍走 HTTP(S) 代理。
+containerd_no_proxy: >-
+  localhost,127.0.0.1,11.0.1.0/24,10.244.0.0/16,10.96.0.0/12,.svc,.cluster.local,.nju.edu.cn
+
+# 镜像加速映射：key 为官方 registry，value 为镜像站基地址。
+# 空 map 表示不启用镜像；role 只清理自己写入的 hosts.toml，不删除用户配置。
+containerd_registry_mirrors: {}
+
+# 固定支持的官方 registry。hosts.toml 的 server 始终指向官方端点，
+# 镜像站只具备 pull capability，tag -> digest 的 resolve 始终由官方完成。
+containerd_registry_servers:
+  quay.io: "https://quay.io"
+  docker.io: "https://registry-1.docker.io"
+  ghcr.io: "https://ghcr.io"
+  registry.k8s.io: "https://registry.k8s.io"
+
+containerd_registry_config_path: /etc/containerd/certs.d
+# 用于识别 role 管理的 hosts.toml，清理时绝不删除没有该标记的用户文件。
+containerd_registry_managed_marker: "Managed by Ansible role containerd"

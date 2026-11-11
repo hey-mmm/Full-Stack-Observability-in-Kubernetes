@@ -10,6 +10,7 @@
 - name: Install Kubernetes apt signing key
   ansible.builtin.get_url:
     url: "{{ k8s_apt_key_url }}"
+    checksum: "sha256:7627818cf7bae52f9008c93e8b1f961f53dea11d40891778de216fb1b43be54d"
     dest: "{{ k8s_apt_keyring }}"
     owner: root
     group: root

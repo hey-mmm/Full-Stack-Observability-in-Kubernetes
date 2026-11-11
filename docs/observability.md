@@ -19,7 +19,8 @@ scripts/acceptance/observability.sh
 docs/observability.md
 ```
 
-- 平台组件由 Ansible + Helm 管理；ArgoCD **未实现**，留待阶段 6。
+- 平台组件由 Ansible + Helm 管理；Argo CD 的安装文件已在阶段 6 准备，但本次
+  未部署/未验收；Argo 只注册 demo 应用。
 - master `11.0.1.10` 保留控制面 `NoSchedule` taint，只运行 node-exporter 和
   Alloy 等 DaemonSet；有状态组件调度到 worker `11.0.1.11`。
 - local-path 只保证 **Pod 重建后 PVC/PV 仍在**。它不是副本存储，也不防节点
@@ -104,7 +105,7 @@ Loki：
 demo Chart **不修改**。安装/升级 demo 时需要显式启用：
 
 ```bash
-helm upgrade --install demo charts/demo -n observability \
+helm upgrade --install demo charts/demo -n demo \
   --set serviceMonitor.enabled=true \
   --set serviceMonitor.labels.release=monitoring
 ```
@@ -119,7 +120,7 @@ helm upgrade --install demo charts/demo -n observability \
 - 告警（`for: 1m`，用于演练，不是生产 burn-rate）：
   - `DemoHighErrorRate`：`/work` 的 1 分钟 5xx 比例 > 5%，且总流量 > 0；
   - `DemoP95LatencyHigh`：`histogram_quantile(0.95, ...)` > 0.5s；
-  - `DemoUnavailable`：`absent(up{namespace="observability"})` 或所有目标
+  - `DemoUnavailable`：`absent(up{namespace="demo"})` 或所有目标
     `up == 0`；
   - `DemoPodCrashLooping`：`kube_pod_container_status_restarts_total` 在 10 分钟
     内增加 > 3。
@@ -195,15 +196,24 @@ receivers:
 
 - DaemonSet 固定 `grafana/alloy:v1.21.3`，`tolerations: [{operator: Exists}]`，
   因此在 master 和 worker 都运行。
-- 只挂载宿主 `/var/log/pods` 到容器 `/var/log/pods`（readOnly），不挂
-  `/var/lib/docker`，不使用 hostPath 写入。
+- 以 UID/GID 0（root）运行：这是为了读取宿主 `/var/log/pods`。容器同时设置
+  `allowPrivilegeEscalation: false`、`capabilities.drop: [ALL]`、
+  `seccompProfile: RuntimeDefault`。但“root + 只读 hostPath”仍是需要接受的
+  风险，不能宣称最小权限；若未来改用非 root，必须验证其对宿主日志文件的读取
+  权限。
+- 只挂载宿主 `/var/log/pods` 到容器 `/var/log/pods`（`readOnly: true`），不挂
+  `/var/lib/docker`，不使用 hostPath 写入；`varlog`/`dockercontainers` 挂载
+  均关闭。
 - `discovery.kubernetes "pods"` 发现 Pod，`discovery.relabel` 生成
   `namespace`、`pod`、`node`、`container` 标签和 `__path__`；随后
   `labeldrop "__meta_.*"` 丢弃其余发现元数据。
 - `loki.source.file` 读取 `/var/log/pods/*<uid>/<container>/*.log`，
   `loki.write` 推送到 Loki。JSON 中的 `request_id` 不被解析成标签。
+- **positions 是临时的**：Alloy 的读取位置文件没有挂 PVC，保存在容器临时文件
+  系统（Pod 重建即丢失）。因此 Pod 重启后可能重新读取已有日志，造成重复/至少
+  一次投递；不能承诺 exactly-once，也不能用 positions 证明“只采集一次”。
 - 采集覆盖两节点 Pod 日志；Pod 删除后对应日志文件可能轮转/删除，Loki 保留
-  期限为 72h，但实际可查范围受采集开始时间和 PVC 容量限制。
+  期限为 72h，但实际可查范围受采集开始时间、重复投递和 PVC 容量限制。
 
 ## 8. 执行顺序与命令行
 
@@ -235,9 +245,17 @@ bash scripts/acceptance/observability.sh --phase logging
 
 `--tags storage/metrics/logging` 不会隐式删除或重建已有组件。preflight 只读；
 Helm 使用固定 `--version`、`wait=true` 和超时；`kubectl apply` 的
-`changed_when` 根据 `created/configured/unchanged` 判断。local-path 官方清单
-按 URL + sha256 下载并缓存，之后仅做幂等 apply；当前代码额外补了 Provisioner
-容器 requests/limits，并把 local-path 标记为默认 StorageClass。
+`changed_when` 根据 `created/configured/unchanged` 判断。
+
+local-path 采用“只读上游源 + 独立渲染目标”：
+
+- 源文件：`/opt/local-path/local-path-storage-v0.0.37.yaml`，按官方 URL 下载并
+  每次运行校验 sha256；Ansible 不修改它。
+- 渲染器：`render_storage.py` 读取源文件，写入独立目标
+  `/opt/local-path/rendered.yaml`，只在该目标中加入默认 StorageClass、
+  Provisioner requests/limits 和 digest 固定的 helper image。
+- apply 只针对 `rendered.yaml`；因此源文件保持上游字节级内容，下一次 checksum
+  校验仍能发现缓存损坏或被编辑。
 
 ## 9. 验收脚本实际检查什么
 
@@ -248,18 +266,22 @@ patch。它通过 kubectl 只读查询和临时 port-forward 真实访问 API：
 - **storage**：
   - `local-path` 为默认 SC，`WaitForFirstConsumer`、`ReclaimPolicy Delete`；
   - provisioner Deployment 可用；
-  - 若 PVC 已存在，则必须 Bound、storageClass 正确、PV reclaimPolicy Delete。
+  - 不要求监控/日志 PVC 已存在；未部署时 storage phase 仍应通过。已部署时由
+    `metrics`/`all` 检查 monitoring PVC，由 `logging` 检查 Loki PVC。
 - **metrics**：
   - Prometheus `/api/v1/targets` 中 node-exporter 至少 2 个健康目标且覆盖两个
-    节点，KSM 健康，`observability` namespace 的 demo target 健康；
+    节点，KSM 健康，`demo` namespace 的 demo target 健康；
   - 实际 PromQL 查询到 `demo_http_requests_total{route="/work"}` 和
     `demo_http_request_duration_seconds_bucket{route="/work"}` 样本；
   - `demo-slo`/`demo-alerts` 规则组存在，4 个 1m 演练告警和 5 个记录规则存在，
     可用性规则包含无流量 guard；
   - Alertmanager 实际配置 Secret 中 `send_resolved: true` 且 webhook URL 指向
     `alert-receiver`；
-  - receiver `/alerts` 至少有一条真实事件且 `received_at` 为 UTC；默认没有事件
-    即失败（`--allow-empty-alerts` 仅用于 smoke，不能作为最终验收）；
+  - receiver `/alerts` 必须存在同一 `alert.fingerprint`（缺失时按 labels 派生）的
+    `DemoHighErrorRate` `status=firing` 和 `status=resolved` 事件，`received_at`
+    为 UTC，且 resolved 的 `received_at` 晚于 firing；仅有任意事件不再算通过；
+    `--allow-empty-alerts` 只在“完全无事件”时跳过该检查并以退出码 3 标记 smoke，
+    不能作为最终验收；
   - Grafana API 数据源包含 `prometheus` 和 `loki`，dashboard
     `uid=demo-observability` 返回 200。
 - **logging**：
@@ -296,7 +318,8 @@ curl -s 'http://127.0.0.1:8080/alerts?limit=5'
   ServiceMonitor 只有在 demo 实际安装且 `serviceMonitor.enabled=true`、
   `serviceMonitor.labels.release=monitoring` 时才存在。
 - 未执行 Prometheus/Loki Pod 重建、PVC 重建、节点故障或任何真实告警演练；
-  receiver 事件为空时脚本会失败。
+  receiver 没有同一 fingerprint 的 `DemoHighErrorRate` firing/resolved 对时脚本
+  会失败；`--allow-empty-alerts` 仅空事件 smoke，退出码 3，不是最终通过。
 - 现有 `ansible/group_vars/all.yml` 的 `control_plane_endpoint` 仍是
   `11.0.1.129:6443`，而本任务给定的 master 固定地址是 `11.0.1.10`；本阶段
   未修改 group_vars，需由 group_vars 的维护者在阶段 1/2 收口。平台角色只使用
@@ -305,9 +328,10 @@ curl -s 'http://127.0.0.1:8080/alerts?limit=5'
   2Gi、Grafana 5Gi）与本阶段平台 values（10Gi、10Gi、1Gi、2Gi）不同。为避免
   覆盖其他任务的变量，平台采用独立的 `ansible/roles/platform/vars/main.yml`；
   以平台 values 为准，但这需要在总体验收时明确，避免误读。
-- local-path 官方 v0.0.37 清单自带的 helper Pod 使用未固定 tag 的
-  `docker.io/library/busybox`。本阶段固定了 provisioner 版本和清单 checksum，
-  但没有修改上游 helper Pod 镜像；这是复现性/供应链上的已知缺口。
+- local-path 官方 v0.0.37 清单自带的 helper Pod 默认使用未固定 tag 的
+  `docker.io/library/busybox`。本阶段的独立渲染目标已将其固定为
+  `docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec`；上游源文件仍保持
+  原样。该 digest 仍需在总体验收时复核。
 - 单 worker + local-path 没有磁盘配额、备份、跨节点迁移、HA 或灾难恢复。
   master 只有 4 GiB，未把 Prometheus/Loki/Grafana 调度到 master；实际启动
   仍需观察 worker 内存和 `/opt/local-path-provisioner` 磁盘。
@@ -315,4 +339,5 @@ curl -s 'http://127.0.0.1:8080/alerts?limit=5'
   notification 或可靠投递保证；不能把“收到 webhook”等同于“发送了邮件/聊天”。
 - Grafana Loki dashboard 链接和 Explore URL 随 Grafana 版本可能变化；JSON
   中的日志面板使用 datasource uid `loki`，若实际 uid 不同需在 Grafana 中调整。
-- 本阶段没有 ArgoCD。GitOps 只管理 demo 应用是后续阶段范围。
+- Argo CD 安装代码已在阶段 6 单独准备，但本阶段未部署/未验收；即使安装，
+  Argo 也只管理 demo 应用，基础组件仍由 Ansible 管理。

@@ -1,5 +1,15 @@
 crds:
   enabled: true
+# kubeadm binds these endpoints to loopback. Do not create unreachable targets;
+# control-plane process availability is still visible through kube-state-metrics.
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeProxy:
+  enabled: false
 kubeStateMetrics:
   enabled: true
 nodeExporter:
@@ -18,6 +28,8 @@ prometheusOperator:
       cpu: 200m
       memory: 256Mi
   admissionWebhooks:
+    enabled: false
+  tls:
     enabled: false
 kube-state-metrics:
   image:
@@ -104,6 +116,7 @@ alertmanager:
       group_wait: 10s
       group_interval: 1m
       repeat_interval: 1h
+      routes: []
     receivers:
     - name: lab-json-webhook
       webhook_configs:
@@ -178,11 +191,11 @@ grafana:
   sidecar:
     resources:
       requests:
-        cpu: 10m
-        memory: 32Mi
-      limits:
         cpu: 50m
         memory: 64Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
     dashboards:
       enabled: true
       label: grafana_dashboard

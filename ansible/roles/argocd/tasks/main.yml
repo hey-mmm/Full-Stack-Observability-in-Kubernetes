@@ -1,0 +1,447 @@
+---
+# Stage 6: install Argo CD and optionally register the single demo Application.
+#
+#   --tags argocd       install/upgrade Argo CD only; never blocked by the
+#                       placeholder image in gitops/demo/values.yaml.
+#   --tags application  create namespace demo, apply AppProject demo, validate
+#                       the desired image, then apply Application demo.
+#
+# The preflight block is tagged always so both modes verify the same cluster.
+# The existing helm role runs before this role and installs/verifies Helm 3.22.1.
+
+- name: Argo CD preflight
+  tags: [always]
+  block:
+    - name: Read cluster nodes through the controller venv Kubernetes SDK
+      kubernetes.core.k8s_info:
+        kubeconfig: "{{ kubeconfig_path }}"
+        kind: Node
+      register: argocd_nodes
+
+    - name: Require exactly the two configured nodes
+      ansible.builtin.assert:
+        that:
+          - argocd_nodes.resources | length == 2
+        fail_msg: >-
+          This profile expects exactly two nodes (master 11.0.1.10 and worker
+          11.0.1.11). Found {{ argocd_nodes.resources | length }}. Refusing to
+          install Argo CD against a different cluster.
+
+    - name: Require every node Ready
+      ansible.builtin.assert:
+        that:
+          - (item.status.conditions | selectattr('type', 'equalto', 'Ready') | map(attribute='status') | first | default('False')) == 'True'
+        fail_msg: "Node {{ item.metadata.name }} is not Ready; refusing to install Argo CD."
+      loop: "{{ argocd_nodes.resources }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
+
+    - name: Require both kubelets on the pinned Kubernetes version
+      ansible.builtin.assert:
+        that:
+          - (argocd_nodes.resources | map(attribute='status.nodeInfo.kubeletVersion') | unique | join(',')) == ('v' ~ k8s_version)
+        fail_msg: >-
+          Expected every kubelet at v{{ k8s_version }}; found
+          {{ argocd_nodes.resources | map(attribute='status.nodeInfo.kubeletVersion') | unique | join(', ') }}.
+
+    - name: Read Kubernetes server version
+      ansible.builtin.command:
+        argv:
+          - timeout
+          - "20"
+          - kubectl
+          - --kubeconfig
+          - "{{ kubeconfig_path }}"
+          - --request-timeout=15s
+          - version
+          - -o
+          - json
+      register: argocd_kube_version
+      changed_when: false
+
+    - name: Require the pinned Kubernetes server version
+      ansible.builtin.assert:
+        that:
+          - (argocd_kube_version.stdout | from_json).serverVersion.gitVersion == ('v' ~ k8s_version)
+        fail_msg: >-
+          Expected Kubernetes v{{ k8s_version }}, got
+          {{ (argocd_kube_version.stdout | from_json).serverVersion.gitVersion | default('unknown') }}.
+          This role does not upgrade or reinitialize the cluster.
+
+    - name: Check the Kubernetes API /readyz endpoint
+      ansible.builtin.command:
+        argv:
+          - timeout
+          - "20"
+          - kubectl
+          - --kubeconfig
+          - "{{ kubeconfig_path }}"
+          - --request-timeout=15s
+          - get
+          - --raw=/readyz
+      changed_when: false
+
+    - name: Read the Helm version installed by the existing helm role
+      ansible.builtin.command:
+        argv:
+          - helm
+          - version
+          - --short
+      register: argocd_helm_version
+      changed_when: false
+
+    - name: Require Helm 3.22.1
+      ansible.builtin.assert:
+        that:
+          - argocd_helm_version.stdout is match('^v3[.]22[.]1([+].*)?$')
+        fail_msg: >-
+          Expected Helm v3.22.1 from the helm role, got
+          '{{ argocd_helm_version.stdout }}'. Run the existing helm role first.
+
+- name: Install or upgrade Argo CD
+  tags: [argocd]
+  block:
+    - name: Ensure root-only Argo CD directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+      loop:
+        - "{{ argocd_config_dir }}"
+        - "{{ argocd_cache_dir }}"
+
+    - name: Ensure the Argo CD namespace with the Kubernetes SDK
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: "{{ argocd_namespace }}"
+            labels:
+              app.kubernetes.io/part-of: argocd
+              app.kubernetes.io/managed-by: ansible
+
+    - name: Copy the pinned Argo CD values
+      ansible.builtin.copy:
+        src: "{{ role_path }}/files/values.yaml"
+        dest: "{{ argocd_values_remote }}"
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Download the pinned argo-cd chart with checksum and bounded timeout
+      ansible.builtin.get_url:
+        url: "{{ argocd_chart_url }}"
+        dest: "{{ argocd_chart_path }}"
+        checksum: "sha256:{{ argocd_chart_sha256 }}"
+        mode: "0600"
+        timeout: "{{ argocd_network_timeout }}"
+        force: false
+
+    - name: Read current Argo CD values for idempotency
+      ansible.builtin.command:
+        argv:
+          - timeout
+          - "20"
+          - helm
+          - get
+          - values
+          - "{{ argocd_release_name }}"
+          - --namespace
+          - "{{ argocd_namespace }}"
+          - --kubeconfig
+          - "{{ kubeconfig_path }}"
+          - -o
+          - json
+      register: argocd_current_values
+      changed_when: false
+      failed_when: false
+
+    - name: Read current Argo CD chart metadata for idempotency
+      ansible.builtin.command:
+        argv:
+          - timeout
+          - "20"
+          - helm
+          - get
+          - metadata
+          - "{{ argocd_release_name }}"
+          - --namespace
+          - "{{ argocd_namespace }}"
+          - --kubeconfig
+          - "{{ kubeconfig_path }}"
+          - -o
+          - json
+      register: argocd_current_metadata
+      changed_when: false
+      failed_when: false
+
+    - name: Read desired Argo CD values for comparison
+      ansible.builtin.set_fact:
+        argocd_desired_values: "{{ lookup('ansible.builtin.file', role_path ~ '/files/values.yaml') | from_yaml }}"
+
+    - name: Decide whether the existing release already matches chart and values
+      ansible.builtin.set_fact:
+        argocd_release_matches: >-
+          {{
+            argocd_current_values.rc == 0
+            and argocd_current_metadata.rc == 0
+            and ((argocd_current_metadata.stdout | from_json).status | default('')) == 'deployed'
+            and ((argocd_current_metadata.stdout | from_json).version | default('')) == argocd_chart_version
+            and ((argocd_current_values.stdout | from_json) | default({})) == argocd_desired_values
+          }}
+
+    # The Helm module is invoked only after the explicit chart-version and
+    # user-values comparison above. A successful invocation therefore is a real
+    # release change; a second run with identical state skips this task.
+    - name: Apply the pinned Argo CD chart with Helm wait bounded to 10 minutes
+      kubernetes.core.helm:
+        name: "{{ argocd_release_name }}"
+        chart_ref: "{{ argocd_chart_path }}"
+        release_namespace: "{{ argocd_namespace }}"
+        values_files:
+          - "{{ argocd_values_remote }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        create_namespace: false
+        wait: true
+        timeout: "{{ argocd_helm_wait_timeout }}"
+        history_max: 3
+      when: not argocd_release_matches
+      changed_when: true
+
+    - name: Report when the Argo CD release is already current
+      ansible.builtin.debug:
+        msg: >-
+          Argo CD release {{ argocd_release_name }} already matches chart
+          {{ argocd_chart_version }} and the pinned values; Helm upgrade skipped.
+      when: argocd_release_matches
+
+    - name: Wait for the single Argo CD server, repo, controller and Redis workloads
+      ansible.builtin.command:
+        argv:
+          - timeout
+          - "240"
+          - kubectl
+          - --kubeconfig
+          - "{{ kubeconfig_path }}"
+          - --request-timeout=15s
+          - -n
+          - "{{ argocd_namespace }}"
+          - rollout
+          - status
+          - "{{ item }}"
+          - --timeout=180s
+      loop:
+        - deployment/argocd-server
+        - deployment/argocd-repo-server
+        - statefulset/argocd-application-controller
+        - deployment/argocd-redis
+      changed_when: false
+
+    - name: Read the Argo CD server Service type
+      ansible.builtin.command:
+        argv:
+          - timeout
+          - "20"
+          - kubectl
+          - --kubeconfig
+          - "{{ kubeconfig_path }}"
+          - --request-timeout=15s
+          - -n
+          - "{{ argocd_namespace }}"
+          - get
+          - service
+          - argocd-server
+          - -o
+          - "jsonpath={.spec.type}"
+      register: argocd_server_service_type
+      changed_when: false
+
+    - name: Require the Argo CD server Service to be ClusterIP
+      ansible.builtin.assert:
+        that:
+          - argocd_server_service_type.stdout | trim == 'ClusterIP'
+        fail_msg: >-
+          argocd-server Service is {{ argocd_server_service_type.stdout | trim }},
+          expected ClusterIP. Ingress and NodePort are intentionally unsupported.
+
+    - name: Read any Ingress objects in the Argo CD namespace
+      ansible.builtin.command:
+        argv:
+          - timeout
+          - "20"
+          - kubectl
+          - --kubeconfig
+          - "{{ kubeconfig_path }}"
+          - --request-timeout=15s
+          - -n
+          - "{{ argocd_namespace }}"
+          - get
+          - ingress
+          - -o
+          - name
+      register: argocd_ingresses
+      changed_when: false
+
+    - name: Require no Ingress objects
+      ansible.builtin.assert:
+        that:
+          - argocd_ingresses.stdout | trim == ''
+        fail_msg: >-
+          Found Ingress objects in {{ argocd_namespace }}. This stage intentionally
+          uses only kubectl port-forward; remove the Ingress before continuing.
+
+    - name: Read the ApplicationSet controller replica count
+      ansible.builtin.command:
+        argv:
+          - timeout
+          - "20"
+          - kubectl
+          - --kubeconfig
+          - "{{ kubeconfig_path }}"
+          - --request-timeout=15s
+          - -n
+          - "{{ argocd_namespace }}"
+          - get
+          - deployment
+          - argocd-applicationset-controller
+          - -o
+          - "jsonpath={.spec.replicas}"
+      register: argocd_appset_replicas
+      changed_when: false
+      failed_when: false
+
+    - name: Require the ApplicationSet controller to have zero replicas
+      ansible.builtin.assert:
+        that:
+          - argocd_appset_replicas.rc == 0
+          - argocd_appset_replicas.stdout | trim == '0'
+        fail_msg: >-
+          ApplicationSet controller is not at replicas=0. Chart 10.17.2 always
+          renders this controller; this role intentionally schedules no pod.
+
+    - name: Show the Argo CD install summary without any credential
+      ansible.builtin.debug:
+        msg:
+          - "Argo CD chart {{ argocd_chart_version }} (app {{ argocd_app_version }}) in namespace {{ argocd_namespace }}"
+          - "Components: controller=1 repo=1 server=1 redis=1; ApplicationSet replicas=0; dex/notifications disabled"
+          - "Service: argocd-server ClusterIP; access only with kubectl port-forward"
+          - "TLS remains enabled (server.insecure=false). The initial admin password is not read or printed by Ansible."
+          - "See docs/argocd-setup.md for the local kubectl secret command and port-forward command."
+
+- name: Register the single demo Application
+  tags: [application]
+  block:
+    - name: Create the demo namespace before any Application object
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: "{{ argocd_demo_namespace }}"
+            labels:
+              app.kubernetes.io/part-of: observability-demo
+              app.kubernetes.io/managed-by: ansible
+
+    - name: Apply the restricted AppProject demo
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: present
+        definition: "{{ lookup('ansible.builtin.file', argocd_project_manifest) | from_yaml }}"
+
+    - name: Read AppProject demo back from the API
+      kubernetes.core.k8s_info:
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: argoproj.io/v1alpha1
+        kind: AppProject
+        name: demo
+        namespace: "{{ argocd_namespace }}"
+      register: argocd_project
+
+    - name: Require AppProject demo to exist
+      ansible.builtin.assert:
+        that:
+          - argocd_project.resources | length == 1
+        fail_msg: AppProject demo was not created; refusing to create Application demo.
+
+    - name: Enforce AppProject repo/namespace-only permissions and no cluster writes
+      ansible.builtin.assert:
+        that:
+          - (argocd_project.resources[0].spec.sourceRepos | default([])) == [argocd_demo_repo_url]
+          - (argocd_project.resources[0].spec.destinations | default([]) | length) == 1
+          - argocd_project.resources[0].spec.destinations[0].namespace == argocd_demo_namespace
+          - argocd_project.resources[0].spec.destinations[0].server == 'https://kubernetes.default.svc'
+          - (argocd_project.resources[0].spec.clusterResourceWhitelist | default([]) | length) == 0
+          - (argocd_project.resources[0].spec.namespaceResourceWhitelist | default([]) | length) > 0
+          - (argocd_project.resources[0].spec.namespaceResourceWhitelist | selectattr('kind', 'equalto', '*') | list | length) == 0
+          - (argocd_project.resources[0].spec.namespaceResourceWhitelist | selectattr('group', 'equalto', '*') | list | length) == 0
+        fail_msg: >-
+          AppProject demo is broader than allowed: exactly one source repo, one
+          destination (demo namespace), no cluster-scoped resources, and no
+          wildcard namespace resource are required.
+
+    - name: Read the desired demo values file
+      ansible.builtin.slurp:
+        src: "{{ argocd_demo_values_path }}"
+      register: argocd_demo_values_raw
+
+    - name: Parse the desired demo values
+      ansible.builtin.set_fact:
+        argocd_demo_values: "{{ argocd_demo_values_raw.content | b64decode | from_yaml }}"
+
+    - name: Refuse to create Application while the desired image is a placeholder
+      ansible.builtin.assert:
+        that:
+          - argocd_demo_values.image is defined
+          - (argocd_demo_values.image.repository | default('')) == argocd_demo_repo_image
+          - (argocd_demo_values.image.tag | default('')) is match('^sha-[0-9a-f]{40}$')
+          - (argocd_demo_values.gitSha | default('')) is match('^[0-9a-f]{40}$')
+        fail_msg: >-
+          Refusing to create Application demo: gitops/demo/values.yaml still has
+          a placeholder or non-immutable image. Replace image.tag with
+          sha-<40 lowercase hex> and gitSha with the same 40 lowercase hex, commit,
+          then rerun with --tags application. Current image.tag={{
+          argocd_demo_values.image.tag | default('<missing>') }}, gitSha={{
+          argocd_demo_values.gitSha | default('<missing>') }}. Installing Argo CD
+          itself is not blocked; use --tags argocd.
+
+    - name: Apply Application demo only after the image is an actual immutable SHA
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: present
+        definition: "{{ lookup('ansible.builtin.file', argocd_application_manifest) | from_yaml }}"
+
+    - name: Read Application demo back from the API
+      kubernetes.core.k8s_info:
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        name: demo
+        namespace: "{{ argocd_namespace }}"
+      register: argocd_application
+
+    - name: Require Application demo to use the demo project and namespace only
+      ansible.builtin.assert:
+        that:
+          - argocd_application.resources | length == 1
+          - argocd_application.resources[0].spec.project == 'demo'
+          - argocd_application.resources[0].spec.destination.namespace == argocd_demo_namespace
+          - argocd_application.resources[0].spec.source.repoURL == argocd_demo_repo_url
+          - argocd_application.resources[0].spec.source.path == 'charts/demo'
+        fail_msg: >-
+          Application demo does not match the restricted demo project/namespace
+          or repository. Refusing to report success.
+
+    - name: Show the Application registration summary
+      ansible.builtin.debug:
+        msg:
+          - "Namespace {{ argocd_demo_namespace }} exists; AppProject demo has no cluster-scoped permissions."
+          - "Application demo points at {{ argocd_demo_repo_url }} path charts/demo, targetRevision main."
+          - "Image tag is the validated immutable SHA; Argo CD will sync from Git on its normal schedule."
+          - "No admin password or Secret data was read or printed."

@@ -72,7 +72,7 @@ cleanup() {
   stop_port_forward
   if (( COMPLETED == 0 )) && { (( PATCHED == 1 )) || (( SUSPENDED == 1 )); }; then
     warn "演练未完成，执行受控恢复：${STATE_FILE}"
-    "${DRILLS_DIR}/recover.sh" --state "$STATE_FILE" --quiet || warn "自动恢复失败；请立即手工执行 recover.sh"
+    bash "${DRILLS_DIR}/recover.sh" --state "$STATE_FILE" --quiet || warn "自动恢复失败；请立即手工执行 recover.sh"
   fi
 }
 trap cleanup EXIT

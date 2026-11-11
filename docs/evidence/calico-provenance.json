@@ -1,0 +1,20 @@
+[
+  {
+    "official_ref": "quay.io/calico/calico:v3.33.0",
+    "mirror_ref": "quay.nju.edu.cn/calico/calico@sha256:3eba6eb95b51b337bf255ecaf5c669b4b2ba04f9f813aa89785aa6853ecf9817",
+    "amd64_digest": "sha256:3eba6eb95b51b337bf255ecaf5c669b4b2ba04f9f813aa89785aa6853ecf9817",
+    "match": true
+  },
+  {
+    "official_ref": "quay.io/calico/node:v3.33.0",
+    "mirror_ref": "quay.nju.edu.cn/calico/node@sha256:224903e17a8d0588a6b9781331bd64935b0ef741a4208043f7dd9fcc834fc7cd",
+    "amd64_digest": "sha256:224903e17a8d0588a6b9781331bd64935b0ef741a4208043f7dd9fcc834fc7cd",
+    "match": true
+  },
+  {
+    "official_ref": "quay.io/calico/third-party-cni-plugins:v3.33.0",
+    "mirror_ref": "quay.nju.edu.cn/calico/third-party-cni-plugins@sha256:ae6464c7d8ffae03f2f26ed411a5b69e91baf31d8d538923645459f4f301a917",
+    "amd64_digest": "sha256:ae6464c7d8ffae03f2f26ed411a5b69e91baf31d8d538923645459f4f301a917",
+    "match": true
+  }
+]

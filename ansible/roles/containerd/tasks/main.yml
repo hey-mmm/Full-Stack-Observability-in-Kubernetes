@@ -10,6 +10,7 @@
 - name: Install Docker apt signing key
   ansible.builtin.get_url:
     url: "{{ docker_apt_key_url }}"
+    checksum: "sha256:1500c1f56fa9e26b9b8f42452a553675796ade0807cdce11975eb98170b3a570"
     dest: "{{ docker_apt_keyring }}"
     owner: root
     group: root
@@ -58,6 +59,34 @@
     group: root
     mode: "0755"
 
+# The lab registry is reachable only through the host-side FlClash proxy.
+# Keep the drop-in managed by this role and remove it only when no proxy is set.
+- name: Ensure containerd systemd drop-in directory exists when a proxy is configured
+  ansible.builtin.file:
+    path: /etc/systemd/system/containerd.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: containerd_http_proxy | length > 0
+
+- name: Install managed containerd systemd proxy drop-in
+  ansible.builtin.template:
+    src: proxy.conf.j2
+    dest: /etc/systemd/system/containerd.service.d/10-proxy.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: containerd_http_proxy | length > 0
+  notify: Restart containerd
+
+- name: Remove managed containerd proxy drop-in when no proxy is configured
+  ansible.builtin.file:
+    path: /etc/systemd/system/containerd.service.d/10-proxy.conf
+    state: absent
+  when: containerd_http_proxy | length == 0
+  notify: Restart containerd
+
 - name: Install deterministic containerd v3 configuration
   ansible.builtin.template:
     src: config.toml.j2
@@ -66,6 +95,96 @@
     group: root
     mode: "0644"
   notify: Restart containerd
+
+# The registry config_path is intentionally fixed to /etc/containerd/certs.d.
+# Keep the supported registry set small so cleanup is deterministic.
+- name: Validate the containerd registry mirror map
+  ansible.builtin.assert:
+    that:
+      - containerd_registry_mirrors is mapping
+      - >-
+        containerd_registry_mirrors.keys() | list
+        | difference(containerd_registry_servers.keys() | list) | length == 0
+    fail_msg: >-
+      containerd_registry_mirrors only supports the fixed registries
+      {{ containerd_registry_servers.keys() | list | join(', ') }}.
+
+- name: Ensure containerd registry configuration directory exists
+  ansible.builtin.file:
+    path: "{{ containerd_registry_config_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Ensure per-registry configuration directories exist
+  ansible.builtin.file:
+    path: "{{ containerd_registry_config_path }}/{{ item.key }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop: "{{ containerd_registry_mirrors | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: Install pull-only registry mirror hosts.toml
+  ansible.builtin.template:
+    src: hosts.toml.j2
+    dest: "{{ containerd_registry_config_path }}/{{ item.key }}/hosts.toml"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ containerd_registry_mirrors | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  notify: Restart containerd
+
+# On an empty or reduced mirror map, remove only hosts.toml files carrying the
+# role marker. A user-supplied hosts.toml at the same path is left untouched.
+- name: Check ownership of existing hosts.toml before cleanup
+  ansible.builtin.command:
+    argv:
+      - grep
+      - -Fq
+      - "{{ containerd_registry_managed_marker }}"
+      - "{{ containerd_registry_config_path }}/{{ item }}/hosts.toml"
+  loop: "{{ containerd_registry_servers.keys() | list }}"
+  when: item not in containerd_registry_mirrors
+  register: containerd_registry_cleanup_check
+  changed_when: false
+  failed_when: false
+
+- name: Remove role-managed hosts.toml when a registry mirror is not configured
+  ansible.builtin.file:
+    path: "{{ containerd_registry_config_path }}/{{ item.item }}/hosts.toml"
+    state: absent
+  loop: "{{ containerd_registry_cleanup_check.results }}"
+  when: item.rc | default(1) == 0
+  notify: Restart containerd
+
+- name: Remove empty per-registry directories after managed config cleanup
+  ansible.builtin.command:
+    argv:
+      - rmdir
+      - "{{ containerd_registry_config_path }}/{{ item.item }}"
+  loop: "{{ containerd_registry_cleanup_check.results }}"
+  when: item.rc | default(1) == 0
+  register: containerd_registry_dir_cleanup
+  changed_when: containerd_registry_dir_cleanup.rc == 0
+  failed_when: false
+
+- name: Install crictl configuration pinned to the containerd CRI socket
+  ansible.builtin.copy:
+    dest: /etc/crictl.yaml
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      runtime-endpoint: unix:///run/containerd/containerd.sock
+      image-endpoint: unix:///run/containerd/containerd.sock
+      timeout: 10
+      debug: false
 
 - name: Ensure containerd is enabled and running
   ansible.builtin.systemd:

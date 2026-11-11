@@ -70,7 +70,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for file in scripts/traffic.sh scripts/acceptance/app.sh scripts/drills/*.sh; do
+          for file in scripts/*.sh scripts/acceptance/*.sh scripts/drills/*.sh; do
             bash -n "$file"
             echo "bash -n OK: $file"
           done

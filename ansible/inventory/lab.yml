@@ -17,3 +17,11 @@ all:
               ansible_user: myt
       vars:
         ansible_python_interpreter: /usr/bin/python3
+        # 虚拟机经宿主机 FlClash 代理访问 registry.k8s.io；代理不可用时改为空字符串直连。
+        lab_containerd_http_proxy: "http://11.0.1.1:7890"
+        # 镜像站只承担 pull；官方 registry 仍负责 tag -> digest 解析。
+        lab_containerd_registry_mirrors:
+          docker.io: "https://docker.m.daocloud.io"
+          quay.io: "https://quay.nju.edu.cn"
+          ghcr.io: "https://ghcr.nju.edu.cn"
+          registry.k8s.io: "https://k8s.nju.edu.cn"

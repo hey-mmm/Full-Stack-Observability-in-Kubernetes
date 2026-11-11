@@ -1,0 +1,133 @@
+{
+  "schema": "k8s-image-provenance/v1",
+  "kubernetes_version": "v1.37.2",
+  "generated_at": "2026-11-11T10:37:48Z",
+  "selection": {
+    "source": "kubeadm config images list --kubernetes-version v1.37.2",
+    "platform": "linux/amd64",
+    "rule": "selected manifest-list entry with platform.os=linux and platform.architecture=amd64",
+    "comparison": "sha256 manifest digest equality between registry.k8s.io and registry.aliyuncs.com/google_containers"
+  },
+  "registries": {
+    "official": "registry.k8s.io",
+    "mirror": "registry.aliyuncs.com",
+    "mirror_namespace": "google_containers"
+  },
+  "authentication": "anonymous bearer tokens fetched per repository; tokens intentionally not recorded",
+  "all_match": true,
+  "images": [
+    {
+      "image": "kube-apiserver",
+      "tag": "v1.37.2",
+      "official_ref": "registry.k8s.io/kube-apiserver:v1.37.2",
+      "mirror_ref": "registry.aliyuncs.com/google_containers/kube-apiserver:v1.37.2",
+      "platform": "linux/amd64",
+      "match": true,
+      "checked_at": "2026-11-11T10:37:48Z",
+      "official_manifest_digest": "sha256:f3916d65eddfe52b6d21ff4a17abdf4c52589c8ef62ec7e0c17204f276cd8db6",
+      "mirror_manifest_digest": "sha256:f3916d65eddfe52b6d21ff4a17abdf4c52589c8ef62ec7e0c17204f276cd8db6",
+      "official_index_digest": "sha256:3e563afb5cb5b72a10bac7012698dd09f5a42bde7d22de8d7d3c12e654df86b4",
+      "mirror_index_digest": "sha256:33e7b5a3824af127154bc2fb6410afd2fd225b422c5b47d614376efb598ada69",
+      "note": "Compared cached official response fetched during this deployment with fresh mirror response; selected amd64 digest matches."
+    },
+    {
+      "image": "kube-controller-manager",
+      "tag": "v1.37.2",
+      "official_ref": "registry.k8s.io/kube-controller-manager:v1.37.2",
+      "mirror_ref": "registry.aliyuncs.com/google_containers/kube-controller-manager:v1.37.2",
+      "platform": "linux/amd64",
+      "official_manifest_digest": "sha256:07fccf8e84f4cdc72c8e59f1a50da68f15acf1299e455004a944610aecac60c4",
+      "mirror_manifest_digest": "sha256:07fccf8e84f4cdc72c8e59f1a50da68f15acf1299e455004a944610aecac60c4",
+      "official_index_digest": "sha256:28e62daf706ed815a8bd1dd27b03294ba09421b2e1674e9a83bbac38e24ceb0c",
+      "mirror_index_digest": "sha256:faa16bd06348159ccd580461bdb6ae168b4a69c00e978aab5ec530d5cfd54ca3",
+      "official_media_type": "application/vnd.docker.distribution.manifest.v2+json",
+      "mirror_media_type": "application/vnd.docker.distribution.manifest.v2+json",
+      "match": true,
+      "checked_at": "2026-11-11T10:37:48Z"
+    },
+    {
+      "image": "kube-scheduler",
+      "tag": "v1.37.2",
+      "official_ref": "registry.k8s.io/kube-scheduler:v1.37.2",
+      "mirror_ref": "registry.aliyuncs.com/google_containers/kube-scheduler:v1.37.2",
+      "platform": "linux/amd64",
+      "official_manifest_digest": "sha256:e5438c1bb8c569c41ad556d8a1e8eba44fc5b3cfe4da3adf2a17168102434074",
+      "mirror_manifest_digest": "sha256:e5438c1bb8c569c41ad556d8a1e8eba44fc5b3cfe4da3adf2a17168102434074",
+      "official_index_digest": "sha256:028c847fc321b8a7f9787f7b1c0840f832d6b68439be2e5c09279ffb14203d6b",
+      "mirror_index_digest": "sha256:9a6eae49b1edcecdd9c137358bee546f238a687ff8c9abfd85a6b58512a1259f",
+      "official_media_type": "application/vnd.docker.distribution.manifest.v2+json",
+      "mirror_media_type": "application/vnd.docker.distribution.manifest.v2+json",
+      "match": true,
+      "checked_at": "2026-11-11T10:37:48Z"
+    },
+    {
+      "image": "kube-proxy",
+      "tag": "v1.37.2",
+      "official_ref": "registry.k8s.io/kube-proxy:v1.37.2",
+      "mirror_ref": "registry.aliyuncs.com/google_containers/kube-proxy:v1.37.2",
+      "platform": "linux/amd64",
+      "official_manifest_digest": "sha256:8c355aac6f4397e98a5462d4bb47b55386df688e6e1e46c67bf374155ac02c45",
+      "mirror_manifest_digest": "sha256:8c355aac6f4397e98a5462d4bb47b55386df688e6e1e46c67bf374155ac02c45",
+      "official_index_digest": "sha256:b2e075697d7ab4f0878775dff9e5dccf818b67644437175210ce72fc1ec70551",
+      "mirror_index_digest": "sha256:0a45a19f580156cb4db2a6d20e944dae0626fd961a3ef879c1b2c39f6c1bb709",
+      "official_media_type": "application/vnd.docker.distribution.manifest.v2+json",
+      "mirror_media_type": "application/vnd.docker.distribution.manifest.v2+json",
+      "match": true,
+      "checked_at": "2026-11-11T10:37:48Z"
+    },
+    {
+      "image": "coredns/coredns",
+      "tag": "v1.14.6",
+      "official_ref": "registry.k8s.io/coredns/coredns:v1.14.6",
+      "mirror_ref": "registry.aliyuncs.com/google_containers/coredns:v1.14.6",
+      "platform": "linux/amd64",
+      "official_manifest_digest": "sha256:1ba6f47265602e2e50a9c4669e3a955e4298a0d30dc82f39293d4bf1a851e0ff",
+      "mirror_manifest_digest": "sha256:1ba6f47265602e2e50a9c4669e3a955e4298a0d30dc82f39293d4bf1a851e0ff",
+      "official_index_digest": "sha256:900f9c109f7a33545d3c811516e8376df9019147b750f5ce3e254468769176ea",
+      "mirror_index_digest": "sha256:30da998ce0fff8691ed1e13a311d376d26ebfe8e083f2a60d86c4a02ed4da330",
+      "official_media_type": "application/vnd.docker.distribution.manifest.v2+json",
+      "mirror_media_type": "application/vnd.docker.distribution.manifest.v2+json",
+      "match": true,
+      "checked_at": "2026-11-11T10:37:48Z",
+      "coredns_mapping_check": {
+        "selected_mirror_repository": "google_containers/coredns",
+        "alternate_mirror_repository": "google_containers/coredns/coredns",
+        "alternate_tag_probe": {
+          "exists": false,
+          "error": "registry.aliyuncs.com/google_containers/coredns/coredns:v1.14.6 HTTP 401 authentication required"
+        }
+      }
+    },
+    {
+      "image": "pause",
+      "tag": "3.10.2",
+      "official_ref": "registry.k8s.io/pause:3.10.2",
+      "mirror_ref": "registry.aliyuncs.com/google_containers/pause:3.10.2",
+      "platform": "linux/amd64",
+      "official_manifest_digest": "sha256:412c4a7219cb8a299a37337f3d87810c5340095322e15594a1637785adad0f17",
+      "mirror_manifest_digest": "sha256:412c4a7219cb8a299a37337f3d87810c5340095322e15594a1637785adad0f17",
+      "official_index_digest": "sha256:f548e0e8e3dc1896ca956272154dde3314e8cc4fde0a57577ee9fa1c63f5baf4",
+      "mirror_index_digest": "sha256:f077b035055396015e8e4ebb20c0d952f9c9f11f505ae7103405c7bf192cbf4d",
+      "official_media_type": "application/vnd.docker.distribution.manifest.v2+json",
+      "mirror_media_type": "application/vnd.docker.distribution.manifest.v2+json",
+      "match": true,
+      "checked_at": "2026-11-11T10:37:48Z"
+    },
+    {
+      "image": "etcd",
+      "tag": "3.7.0-0",
+      "official_ref": "registry.k8s.io/etcd:3.7.0-0",
+      "mirror_ref": "registry.aliyuncs.com/google_containers/etcd:3.7.0-0",
+      "platform": "linux/amd64",
+      "official_manifest_digest": "sha256:1f445fa5dd06b08f3c0cf9f46e2891e9bc66cbf7e0b9c66627c40658edf4bc98",
+      "mirror_manifest_digest": "sha256:1f445fa5dd06b08f3c0cf9f46e2891e9bc66cbf7e0b9c66627c40658edf4bc98",
+      "official_index_digest": "sha256:6ecefbe2510c4a30573a62a4d6dd175acf881ca67003fcd91849a16df7a724d5",
+      "mirror_index_digest": "sha256:55c0fb58bab998a8dfcc7a2ad72d840a7e7d194a0879290ff60448db73ab6eb3",
+      "official_media_type": "application/vnd.docker.distribution.manifest.v2+json",
+      "mirror_media_type": "application/vnd.docker.distribution.manifest.v2+json",
+      "match": true,
+      "checked_at": "2026-11-11T10:37:48Z"
+    }
+  ],
+  "failures": []
+}

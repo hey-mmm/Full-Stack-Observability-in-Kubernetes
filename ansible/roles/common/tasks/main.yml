@@ -45,6 +45,34 @@
     line: "127.0.1.1 {{ common_hostname }}"
     state: present
 
+# kubelet builds each ClusterFirst Pod resolv.conf from
+# /run/systemd/resolve/resolv.conf (see resolvConf in the KubeletConfiguration),
+# which systemd-resolved generates from this file and appends to the cluster
+# search domains. A leftover "localdomain" search domain makes glibc expand a
+# fully qualified Service name (svc.ns.svc.cluster.local has fewer than the
+# configured ndots:5) to "<name>.localdomain" before trying the absolute name.
+# A lab upstream that answers non-existent names with an address (fake-IP /
+# proxy DNS) then wins with a bogus address, so in-cluster HTTP fails while
+# short names still work. Keep the node search list free of that domain.
+- name: Remove the stale localdomain search domain from the node resolver
+  ansible.builtin.lineinfile:
+    path: /etc/resolv.conf
+    regexp: '^search[ \t]+localdomain[ \t]*$'
+    state: absent
+    backup: true
+  notify: Restart systemd-resolved
+
+- name: Verify the node resolver does not advertise localdomain
+  ansible.builtin.command:
+    argv:
+      - grep
+      - -Eq
+      - '(^|[[:space:]])localdomain([[:space:]]|$)'
+      - /etc/resolv.conf
+  register: node_resolver_localdomain
+  changed_when: false
+  failed_when: node_resolver_localdomain.rc != 1
+
 - name: Persist kernel modules required by Kubernetes and Calico
   ansible.builtin.copy:
     dest: /etc/modules-load.d/kubernetes.conf

@@ -2,6 +2,7 @@
 - name: Stage 1 - Host baseline and runtime packages
   hosts: k8s_cluster
   become: true
+  environment: "{{ lab_proxy_environment }}"
   gather_facts: true
   vars_files:
     - ../group_vars/all.yml
@@ -13,6 +14,7 @@
 - name: Stage 1 - Initialize the control plane
   hosts: kube_control_plane
   become: true
+  environment: "{{ lab_proxy_environment }}"
   gather_facts: true
   vars_files:
     - ../group_vars/all.yml
@@ -22,6 +24,7 @@
 - name: Stage 1 - Apply Calico only, without blocking on workload readiness
   hosts: kube_control_plane
   become: true
+  environment: "{{ lab_proxy_environment }}"
   gather_facts: false
   vars_files:
     - ../group_vars/all.yml
@@ -31,15 +34,63 @@
 - name: Stage 1 - Join workers without waiting for CNI-dependent readiness
   hosts: kube_workers
   become: true
+  environment: "{{ lab_proxy_environment }}"
   gather_facts: true
   vars_files:
     - ../group_vars/all.yml
   roles:
     - role: worker_join
 
+- name: Stage 1 - Configure bounded kubelet image pull parallelism
+  hosts: k8s_cluster
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../group_vars/all.yml
+  tasks:
+    - name: Stat kubelet configuration
+      ansible.builtin.stat:
+        path: /var/lib/kubelet/config.yaml
+      register: kubelet_config_file
+
+    - name: Assert kubelet configuration exists and pull parallelism is bounded
+      ansible.builtin.assert:
+        that:
+          - kubelet_config_file.stat.exists
+          - kubelet_max_parallel_image_pulls | int >= 1
+          - kubelet_max_parallel_image_pulls | int <= 4
+        fail_msg: >-
+          /var/lib/kubelet/config.yaml must already exist after node
+          initialization, and kubelet_max_parallel_image_pulls must be between
+          1 and 4 (got {{ kubelet_max_parallel_image_pulls }}).
+        quiet: true
+
+    - name: Disable serialized image pulls
+      ansible.builtin.lineinfile:
+        path: /var/lib/kubelet/config.yaml
+        regexp: '^serializeImagePulls:'
+        line: 'serializeImagePulls: false'
+        create: false
+      notify: Restart kubelet after image pull policy change
+
+    - name: Bound parallel image pulls
+      ansible.builtin.lineinfile:
+        path: /var/lib/kubelet/config.yaml
+        regexp: '^maxParallelImagePulls:'
+        line: "maxParallelImagePulls: {{ kubelet_max_parallel_image_pulls }}"
+        create: false
+      notify: Restart kubelet after image pull policy change
+
+  handlers:
+    - name: Restart kubelet after image pull policy change
+      ansible.builtin.systemd:
+        name: kubelet
+        state: restarted
+
 - name: Stage 1 - Verify cluster, CNI and DNS convergence
   hosts: kube_control_plane
   become: true
+  environment: "{{ lab_proxy_environment }}"
   gather_facts: false
   vars_files:
     - ../group_vars/all.yml

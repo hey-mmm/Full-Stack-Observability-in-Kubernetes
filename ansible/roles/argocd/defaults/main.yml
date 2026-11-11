@@ -1,0 +1,28 @@
+---
+# Stage 6 Argo CD defaults. All versions were read from the locally cached
+# official argo-helm index.yaml / Chart.yaml on 2026-11-11; no "latest" is used.
+argocd_namespace: argocd
+argocd_release_name: argocd
+argocd_chart_version: "10.17.2"
+argocd_app_version: "v3.6.1"
+argocd_chart_url: "https://github.com/argoproj/argo-helm/releases/download/argo-cd-{{ argocd_chart_version }}/argo-cd-{{ argocd_chart_version }}.tgz"
+argocd_chart_sha256: "c516b221a2380074bd2a3ed04ff6830a19fb07c3719070aa456ed02778767c4f"
+
+argocd_config_dir: /opt/argocd
+argocd_cache_dir: /opt/argocd/cache
+argocd_chart_path: "{{ argocd_cache_dir }}/argo-cd-{{ argocd_chart_version }}.tgz"
+argocd_values_remote: "{{ argocd_config_dir }}/values.yaml"
+
+argocd_repo_root: "{{ role_path }}/../../.."
+argocd_demo_values_path: "{{ argocd_repo_root }}/gitops/demo/values.yaml"
+argocd_project_manifest: "{{ argocd_repo_root }}/gitops/argocd/project.yaml"
+argocd_application_manifest: "{{ argocd_repo_root }}/gitops/argocd/application.yaml"
+
+argocd_demo_repo_url: "https://github.com/hey-mmm/Full-Stack-Observability-in-Kubernetes.git"
+argocd_demo_repo_image: "ghcr.io/hey-mmm/observability-demo"
+argocd_demo_namespace: demo
+
+# Helm install is bounded by kubernetes.core.helm: wait at most 600 seconds
+# (10m). The chart tgz download is bounded at 120s.
+argocd_helm_wait_timeout: "10m"
+argocd_network_timeout: 120

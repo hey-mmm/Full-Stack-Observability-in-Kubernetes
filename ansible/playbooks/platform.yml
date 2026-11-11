@@ -4,8 +4,7 @@
   gather_facts: false
   vars_files:
   - ../group_vars/all.yml
-  environment:
-    KUBECONFIG: '{{ kubeconfig_path }}'
+  environment: "{{ lab_proxy_environment | combine({'KUBECONFIG': kubeconfig_path}) }}"
   roles:
   - role: helm
     tags: [always]

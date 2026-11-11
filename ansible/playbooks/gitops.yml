@@ -1,0 +1,16 @@
+---
+- name: Stage 6 - Argo CD installation and demo GitOps foundation
+  hosts: kube_control_plane
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../group_vars/all.yml
+  environment: "{{ lab_proxy_environment | combine({'KUBECONFIG': kubeconfig_path}) }}"
+  roles:
+    # The existing helm role is pinned to 3.22.1 and must run first.
+    - role: helm
+      tags: [always]
+    - role: argocd
+  vars:
+    # The controller venv provides ansible-core, kubernetes and jsonpatch.
+    ansible_python_interpreter: /home/myt/.venvs/ansible/bin/python

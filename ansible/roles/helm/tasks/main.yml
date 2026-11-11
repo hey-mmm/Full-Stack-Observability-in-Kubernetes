@@ -25,6 +25,7 @@
     src: /opt/helm/v3.22.1/linux-amd64/helm
     dest: /usr/local/bin/helm
     state: link
+    force: true
 
 - name: Verify Helm version
   ansible.builtin.command:

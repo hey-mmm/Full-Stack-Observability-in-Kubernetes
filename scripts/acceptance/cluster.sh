@@ -185,6 +185,8 @@ kind: Pod
 metadata:
   name: netcheck-master
   namespace: ${NS}
+  labels:
+    netcheck-role: master
 spec:
   nodeName: master
   tolerations:
@@ -193,13 +195,18 @@ spec:
     - name: netcheck
       image: ${TEST_IMAGE}
       imagePullPolicy: IfNotPresent
-      command: ["sh", "-c", "sleep 3600"]
+      command: ["sh", "-c", "mkdir -p /www; echo network-ok > /www/index.html; exec httpd -f -p 8080 -h /www"]
+      resources:
+        requests: {cpu: 10m, memory: 8Mi}
+        limits: {cpu: 100m, memory: 32Mi}
 ---
 apiVersion: v1
 kind: Pod
 metadata:
   name: netcheck-worker
   namespace: ${NS}
+  labels:
+    netcheck-role: worker
 spec:
   nodeName: worker
   tolerations:
@@ -208,7 +215,21 @@ spec:
     - name: netcheck
       image: ${TEST_IMAGE}
       imagePullPolicy: IfNotPresent
-      command: ["sh", "-c", "sleep 3600"]
+      command: ["sh", "-c", "mkdir -p /www; echo network-ok > /www/index.html; exec httpd -f -p 8080 -h /www"]
+      resources:
+        requests: {cpu: 10m, memory: 8Mi}
+        limits: {cpu: 100m, memory: 32Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: netcheck
+  namespace: ${NS}
+spec:
+  selector: {netcheck-role: worker}
+  ports:
+    - port: 8080
+      targetPort: 8080
 EOF
 
 if [[ $? -eq 0 ]]; then
@@ -252,6 +273,29 @@ if [[ -n "$MASTER_POD_IP" ]] && timeout 30 kubectl --request-timeout=15s -n "$NS
   pass "cross-node Pod network worker -> master"
 else
   fail "cross-node Pod network worker -> master failed"
+fi
+
+# EndpointSlice and kube-proxy updates follow Pod readiness asynchronously.
+# Wait a bounded 40 seconds for the newly created Service to converge.
+service_response=""
+for attempt in $(seq 1 10); do
+  service_response="$(timeout 15 kubectl --request-timeout=10s -n "$NS" exec netcheck-master -- \
+    wget -qO- -T 2 "http://netcheck.${NS}.svc.cluster.local:8080" 2>/dev/null || true)"
+  [[ "$service_response" == "network-ok" ]] && break
+  sleep 2
+done
+if [[ "$service_response" == "network-ok" ]]; then
+  pass "HTTP through DNS and ClusterIP Service from master Pod to worker Pod"
+else
+  fail "HTTP through DNS and ClusterIP Service failed"
+fi
+
+reverse_response="$(timeout 30 kubectl --request-timeout=15s -n "$NS" exec netcheck-worker -- \
+  wget -qO- -T 5 "http://${MASTER_POD_IP}:8080" 2>/dev/null || true)"
+if [[ "$reverse_response" == "network-ok" ]]; then
+  pass "HTTP from worker Pod to master Pod"
+else
+  fail "HTTP from worker Pod to master Pod failed"
 fi
 
 printf '\n== Summary: passes=%d, failures=%d ==\n' "$PASSES" "$FAILS"

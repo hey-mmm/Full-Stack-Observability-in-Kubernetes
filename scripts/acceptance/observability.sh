@@ -11,9 +11,10 @@
 #   bash scripts/acceptance/observability.sh --phase logging
 #   bash scripts/acceptance/observability.sh --phase all
 #
-# The metrics phase deliberately fails when the alert receiver has no real
-# event. Run a real error drill first, or use --allow-empty-alerts only for a
-# non-final smoke check.
+# Final metrics acceptance requires a same-fingerprint DemoHighErrorRate
+# firing+resolved pair, with resolved received after firing. Run a real
+# error/recovery drill first. --allow-empty-alerts only skips the completely
+# empty receiver case and exits 3; it is never a final pass.
 set -uo pipefail
 
 KUBECONFIG="${KUBECONFIG:-/etc/kubernetes/admin.conf}"
@@ -24,6 +25,8 @@ LOGGING_NAMESPACE="${LOGGING_NAMESPACE:-logging}"
 APP_NAMESPACE="${APP_NAMESPACE:-demo}"
 PHASE="all"
 ALLOW_EMPTY_ALERTS=0
+SMOKE_ONLY=0
+REQUIRED_ALERT="${REQUIRED_ALERT:-DemoHighErrorRate}"
 PROM_LOCAL="${PROM_LOCAL:-19090}"
 LOKI_LOCAL="${LOKI_LOCAL:-13100}"
 GRAFANA_LOCAL="${GRAFANA_LOCAL:-13000}"
@@ -59,15 +62,22 @@ usage() {
 
 选项:
   --phase storage|metrics|logging|all  要检查的阶段（默认 all）
-  --allow-empty-alerts                 允许 receiver 暂无事件（仅 smoke，不作为最终验收）
+  --allow-empty-alerts                 receiver 完全无事件时跳过告警对检查；
+                                       最终退出码 3，不能视为通过
   --help                               显示帮助
 
 环境变量:
   KUBECONFIG                 默认 /etc/kubernetes/admin.conf
   MONITORING_NAMESPACE       默认 monitoring
   LOGGING_NAMESPACE          默认 logging
-  APP_NAMESPACE              默认 observability
+  APP_NAMESPACE              默认 demo
+  REQUIRED_ALERT             默认 DemoHighErrorRate
   PROM_LOCAL/LOKI_LOCAL/GRAFANA_LOCAL/RECEIVER_LOCAL  本地转发端口
+
+退出码:
+  0  最终验收检查全部通过
+  1  有检查失败
+  3  使用了 --allow-empty-alerts 且 receiver 无事件（仅 smoke，不是最终通过）
 
 示例:
   bash scripts/acceptance/observability.sh --phase storage
@@ -316,6 +326,9 @@ import json, sys
 data = json.load(sys.stdin)
 active = data.get("data", {}).get("activeTargets", [])
 assert active, "no active targets"
+down = [(t.get("scrapePool"), t.get("lastError")) for t in active if t.get("health") != "up"]
+assert not down, f"unhealthy active targets: {down}"
+print(f"all active targets up: {len(active)}")
 
 def pool(t):
     return (t.get("scrapePool") or "") + " " + (t.get("labels", {}).get("job") or "")
@@ -359,6 +372,7 @@ for name in ["DemoHighErrorRate", "DemoP95LatencyHigh", "DemoUnavailable", "Demo
 slo = records["demo:sli_availability:ratio_7d"].get("query", "")
 assert "and on()" in slo and "> 0" in slo, "availability rule lacks no-traffic guard"
 for name, rule in alerts.items():
+    assert rule.get("health") == "ok", "unhealthy rule: %s %s" % (name, rule.get("health"))
     duration = rule.get("duration")
     if duration is not None:
         assert duration <= 60, f"{name} duration={duration}s, expected <=60s for the drill"
@@ -450,36 +464,90 @@ sys.exit(1)
         fail "alert receiver /healthz 返回异常"
       fi
     fi
-    if ! events="$(curl -fsS --max-time 10 "http://127.0.0.1:${RECEIVER_LOCAL}/alerts?limit=100")"; then
+    if ! events="$(curl -fsS --max-time 10 "http://127.0.0.1:${RECEIVER_LOCAL}/alerts?limit=500")"; then
       fail "alert receiver /alerts 查询失败"
     else
       if printf '%s' "$events" | python3 -c '
-import json, sys
-from datetime import datetime, timezone
+import hashlib, json, sys
+from datetime import datetime, timedelta
+
+required = sys.argv[1]
 data = json.load(sys.stdin)
 events = data.get("events", [])
 assert isinstance(events, list)
 if not events:
     sys.exit(3)
+
+def parse_utc(value):
+    assert value, "received_at missing"
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    assert parsed.tzinfo is not None, f"received_at has no timezone: {value}"
+    assert parsed.utcoffset() == timedelta(0), f"received_at is not UTC: {value}"
+    return parsed
+
+def fingerprint(alert):
+    fp = alert.get("fingerprint")
+    if fp:
+        return str(fp), "alert.fingerprint"
+    labels = alert.get("labels") or {}
+    canonical = json.dumps(labels, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16], "derived(labels)"
+
+series = {}
+seen = []
 for event in events:
-    ts = event.get("received_at")
-    assert ts, "received_at missing"
-    parsed = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-    assert parsed.tzinfo is not None
-    assert parsed.utcoffset() == timezone.utc.utcoffset(None), f"not UTC: {ts}"
-print("receiver persisted events=%s sample_utc=%s" % (len(events), events[-1]["received_at"]))
-'; then
-        pass "alert receiver 有真实告警事件，含 UTC received_at"
+    received = parse_utc(event.get("received_at"))
+    alert = event.get("alert") or {}
+    labels = alert.get("labels") or {}
+    name = labels.get("alertname")
+    status = str(alert.get("status", "")).lower()
+    if name != required:
+        continue
+    if status not in {"firing", "resolved"}:
+        continue
+    fp, source = fingerprint(alert)
+    series.setdefault(fp, []).append((received, status, source))
+    seen.append((fp, status, event.get("received_at")))
+
+valid = []
+for fp, entries in series.items():
+    firings = [entry for entry in entries if entry[1] == "firing"]
+    resolved = [entry for entry in entries if entry[1] == "resolved"]
+    for firing in firings:
+        after = [entry for entry in resolved if entry[0] > firing[0]]
+        if after:
+            resolved_entry = max(after, key=lambda entry: entry[0])
+            valid.append((firing[0], resolved_entry[0], fp, firing[2]))
+            break
+
+if not valid:
+    print(
+        "no same-fingerprint %s firing->resolved pair; recent=%s"
+        % (required, seen[-8:]),
+        file=sys.stderr,
+    )
+    sys.exit(4)
+firing_at, resolved_at, fp, source = max(valid, key=lambda item: item[1])
+assert resolved_at > firing_at, "resolved record is not after firing"
+print(
+    "receiver validated alert=%s fingerprint=%s source=%s firing_at=%s resolved_at=%s events=%s"
+    % (required, fp, source, firing_at.isoformat(), resolved_at.isoformat(), len(events))
+)
+' "$REQUIRED_ALERT"; then
+        pass "alert receiver 有同一 fingerprint 的 ${REQUIRED_ALERT} firing/resolved 记录，且恢复晚于触发"
       else
         rc=$?
         if [[ "$rc" -eq 3 ]]; then
           if [[ "$ALLOW_EMPTY_ALERTS" -eq 1 ]]; then
-            info "alert receiver 暂无事件（--allow-empty-alerts，不能作为最终阶段验收）"
+            info "alert receiver 暂无事件（--allow-empty-alerts smoke，退出码 3，不能作为最终验收）"
+            SMOKE_ONLY=1
           else
-            fail "alert receiver 暂无事件；先完成真实故障/恢复演练，再运行最终验收"
+            fail "alert receiver 暂无事件；先完成 ${REQUIRED_ALERT} 真实故障/恢复演练，再运行最终验收"
           fi
+        elif [[ "$rc" -eq 4 ]]; then
+          fail "alert receiver 有事件，但没有同一 fingerprint 的 ${REQUIRED_ALERT} firing/resolved 对，或恢复不在触发之后"
         else
-          fail "alert receiver 事件 JSON/UTC 字段异常"
+          fail "alert receiver 事件 JSON/UTC/fingerprint 结构异常"
         fi
       fi
     fi
@@ -673,14 +741,9 @@ check_nodes
 
 case "$PHASE" in
   storage)
+    # Storage phase is meaningful before monitoring/logging exist: do not
+    # require their PVCs here. Existing PVCs are checked by metrics/all/logging.
     check_storage_class
-    if k -n "$MONITORING_NAMESPACE" get pvc >/dev/null 2>&1; then
-      check_monitoring_pvcs
-    fi
-    if k -n "$LOGGING_NAMESPACE" get pvc >/dev/null 2>&1; then
-      check_pvcs "$LOGGING_NAMESPACE" 10Gi
-      check_pv_reclaim "$LOGGING_NAMESPACE"
-    fi
     ;;
   metrics)
     check_storage_class
@@ -702,5 +765,9 @@ esac
 echo "acceptance summary: checks=$((PASSES + FAILS)) passes=${PASSES} failures=${FAILS}"
 if [[ "$FAILS" -gt 0 ]]; then
   exit 1
+fi
+if [[ "$SMOKE_ONLY" -eq 1 ]]; then
+  echo "RESULT: SMOKE_ONLY (required alert firing/resolved pair was not verified; not final acceptance)" >&2
+  exit 3
 fi
 exit 0
