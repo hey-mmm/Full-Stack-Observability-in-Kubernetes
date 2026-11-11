@@ -1,0 +1,68 @@
+# 凭据、私钥与环境变量：一律不进入仓库
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+id_ecdsa*
+id_dsa*
+**/id_rsa*
+**/id_ed25519*
+**/id_ecdsa*
+**/id_dsa*
+
+# kubeconfig 与控制面证书材料
+*kubeconfig*
+**/kubeconfig
+**/admin.conf
+**/*.kubeconfig
+**/etc/kubernetes/**
+!ansible/**/templates/**
+
+# Ansible Vault、真实凭据和本机私有变量
+**/vault*.yml
+**/vault*.yaml
+**/vault-password*
+**/group_vars/**/vault*
+**/host_vars/**/vault*
+**/inventory/**/secrets*.yml
+**/inventory/**/secrets*.yaml
+**/credentials*.yml
+**/credentials*.yaml
+**/secrets*.yml
+**/secrets*.yaml
+
+# Ansible 运行产物与本地 collection 安装目录
+.ansible/
+ansible/collections/
+**/*.retry
+**/ansible.log
+**/logs/
+*.log
+
+# Python / 虚拟环境
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# 编辑器与系统文件
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+.tmp-versions/
+work/
+*.tar.gz
+

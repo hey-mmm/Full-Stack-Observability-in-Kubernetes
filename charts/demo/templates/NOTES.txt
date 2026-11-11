@@ -1,0 +1,13 @@
+{{- if .Values.serviceMonitor.enabled }}
+ServiceMonitor 已启用：请确认集群已安装 monitoring.coreos.com/v1 CRD，并且 Prometheus 的
+serviceMonitorSelector 能匹配 labels（可设置 serviceMonitor.labels，例如 release: kube-prometheus-stack）。
+{{- else }}
+ServiceMonitor 未启用（默认），当前 release 不依赖 Prometheus Operator CRD。
+{{- end }}
+
+访问方式（不创建 NodePort/Ingress）：
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "demo.fullname" . }} 18080:{{ .Values.service.port }}
+  curl http://127.0.0.1:18080/healthz
+
+验证发布版本：
+  curl -s http://127.0.0.1:18080/version | python3 -m json.tool

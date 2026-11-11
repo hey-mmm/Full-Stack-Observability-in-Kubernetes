@@ -1,0 +1,165 @@
+---
+- name: Stage 1 - Host baseline and runtime packages
+  hosts: k8s_cluster
+  become: true
+  gather_facts: true
+  vars_files:
+    - ../group_vars/all.yml
+  roles:
+    - role: common
+    - role: containerd
+    - role: kubernetes
+
+- name: Stage 1 - Initialize the control plane
+  hosts: kube_control_plane
+  become: true
+  gather_facts: true
+  vars_files:
+    - ../group_vars/all.yml
+  roles:
+    - role: control_plane
+
+- name: Stage 1 - Apply Calico only, without blocking on workload readiness
+  hosts: kube_control_plane
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../group_vars/all.yml
+  roles:
+    - role: calico
+
+- name: Stage 1 - Join workers without waiting for CNI-dependent readiness
+  hosts: kube_workers
+  become: true
+  gather_facts: true
+  vars_files:
+    - ../group_vars/all.yml
+  roles:
+    - role: worker_join
+
+- name: Stage 1 - Verify cluster, CNI and DNS convergence
+  hosts: kube_control_plane
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../group_vars/all.yml
+  tasks:
+    - name: Wait for all expected nodes to be Ready
+      ansible.builtin.command:
+        argv:
+          - timeout
+          - "330"
+          - kubectl
+          - --kubeconfig
+          - "{{ kubeconfig_path }}"
+          - --request-timeout=15s
+          - wait
+          - --for=condition=Ready
+          - nodes
+          - --all
+          - --timeout=300s
+      changed_when: false
+
+    - name: Wait for kube-proxy on every node
+      ansible.builtin.command:
+        argv:
+          - timeout
+          - "200"
+          - kubectl
+          - --kubeconfig
+          - "{{ kubeconfig_path }}"
+          - --request-timeout=15s
+          - -n
+          - kube-system
+          - rollout
+          - status
+          - daemonset/kube-proxy
+          - --timeout=180s
+      register: kube_proxy_rollout
+      changed_when: false
+      until: kube_proxy_rollout.rc == 0
+      retries: 5
+      delay: 10
+
+    - name: Wait for Calico node on every node
+      ansible.builtin.command:
+        argv:
+          - timeout
+          - "200"
+          - kubectl
+          - --kubeconfig
+          - "{{ kubeconfig_path }}"
+          - --request-timeout=15s
+          - -n
+          - kube-system
+          - rollout
+          - status
+          - daemonset/calico-node
+          - --timeout=180s
+      register: calico_rollout_after_join
+      changed_when: false
+      until: calico_rollout_after_join.rc == 0
+      retries: 5
+      delay: 10
+
+    - name: Wait for Calico kube-controllers
+      ansible.builtin.command:
+        argv:
+          - timeout
+          - "200"
+          - kubectl
+          - --kubeconfig
+          - "{{ kubeconfig_path }}"
+          - --request-timeout=15s
+          - -n
+          - kube-system
+          - rollout
+          - status
+          - deployment/calico-kube-controllers
+          - --timeout=180s
+      register: calico_controllers_rollout
+      changed_when: false
+      until: calico_controllers_rollout.rc == 0
+      retries: 5
+      delay: 10
+
+    - name: Wait for CoreDNS
+      ansible.builtin.command:
+        argv:
+          - timeout
+          - "200"
+          - kubectl
+          - --kubeconfig
+          - "{{ kubeconfig_path }}"
+          - --request-timeout=15s
+          - -n
+          - kube-system
+          - rollout
+          - status
+          - deployment/coredns
+          - --timeout=180s
+      register: coredns_rollout
+      changed_when: false
+      until: coredns_rollout.rc == 0
+      retries: 5
+      delay: 10
+
+    - name: Read final node table
+      ansible.builtin.command:
+        argv:
+          - timeout
+          - "20"
+          - kubectl
+          - --kubeconfig
+          - "{{ kubeconfig_path }}"
+          - --request-timeout=15s
+          - get
+          - nodes
+          - -o
+          - wide
+      register: final_nodes
+      changed_when: false
+
+    - name: Show final node table
+      ansible.builtin.debug:
+        var: final_nodes.stdout_lines

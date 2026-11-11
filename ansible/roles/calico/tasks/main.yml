@@ -1,0 +1,79 @@
+---
+- name: Ensure Calico source and rendered directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - "{{ calico_manifest_path | dirname }}"
+    - "{{ calico_rendered_manifest_path | dirname }}"
+
+- name: Download the immutable Calico v3.33.0 manifest with checksum verification
+  ansible.builtin.get_url:
+    url: "{{ calico_manifest_url }}"
+    dest: "{{ calico_manifest_path }}"
+    checksum: "sha256:{{ calico_manifest_sha256 }}"
+    owner: root
+    group: root
+    mode: "0644"
+    force: false
+    timeout: 30
+
+- name: Render a separate Calico manifest for the laboratory pod CIDR
+  ansible.builtin.copy:
+    src: "{{ calico_manifest_path }}"
+    dest: "{{ calico_rendered_manifest_path }}"
+    remote_src: true
+    force: false
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Set the Calico IPv4 pool only in the rendered manifest
+  ansible.builtin.replace:
+    path: "{{ calico_rendered_manifest_path }}"
+    regexp: '(?m)^([ \t]*)# - name: CALICO_IPV4POOL_CIDR\n([ \t]*)#   value: "192\.168\.0\.0/16"$'
+    replace: '\1- name: CALICO_IPV4POOL_CIDR\n\2  value: "{{ calico_ipv4_pool_cidr }}"'
+
+- name: Read the rendered Calico manifest for validation
+  ansible.builtin.slurp:
+    src: "{{ calico_rendered_manifest_path }}"
+  register: calico_manifest_data
+
+- name: Assert the rendered Calico manifest uses the requested pod CIDR
+  ansible.builtin.assert:
+    that:
+      - >-
+        '- name: CALICO_IPV4POOL_CIDR' in
+        (calico_manifest_data.content | b64decode)
+      - >-
+        ('value: "' ~ calico_ipv4_pool_cidr ~ '"') in
+        (calico_manifest_data.content | b64decode)
+      - >-
+        '# - name: CALICO_IPV4POOL_CIDR' not in
+        (calico_manifest_data.content | b64decode)
+    fail_msg: >-
+      The pinned Calico manifest did not contain the expected
+      CALICO_IPV4POOL_CIDR block, or the CIDR replacement failed. Refusing to
+      apply an ambiguous CNI configuration.
+    success_msg: "Rendered Calico IPPool is {{ calico_ipv4_pool_cidr }}."
+
+- name: Apply the rendered Calico manifest without waiting for workload readiness
+  ansible.builtin.command:
+    argv:
+      - timeout
+      - "60"
+      - kubectl
+      - --kubeconfig
+      - "{{ kubeconfig_path }}"
+      - --request-timeout=30s
+      - apply
+      - -f
+      - "{{ calico_rendered_manifest_path }}"
+  register: calico_apply
+  changed_when: >-
+    'created' in calico_apply.stdout or
+    'configured' in calico_apply.stdout or
+    'patched' in calico_apply.stdout

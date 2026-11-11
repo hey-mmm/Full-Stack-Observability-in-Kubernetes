@@ -1,0 +1,97 @@
+---
+# 集中版本、网络、CIDR、保留期与容量参数。
+# 版本核实日期：2026-11-11；依据见 docs/plan.md。禁止改成 latest。
+
+# --- Kubernetes ---------------------------------------------------------
+k8s_version: "1.37.2"
+k8s_package_version: "1.37.2-1.1"
+k8s_minor: "1.37"
+k8s_apt_channel: "v1.37"
+k8s_apt_key_url: "https://pkgs.k8s.io/core:/stable:/{{ k8s_apt_channel }}/deb/Release.key"
+k8s_apt_repo: >-
+  deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.asc]
+  https://pkgs.k8s.io/core:/stable:/{{ k8s_apt_channel }}/deb/ /
+k8s_apt_keyring: /etc/apt/keyrings/kubernetes-apt-keyring.asc
+k8s_apt_source: /etc/apt/sources.list.d/kubernetes.list
+kube_packages:
+  - kubelet
+  - kubeadm
+  - kubectl
+
+# --- 容器运行时 ---------------------------------------------------------
+containerd_version: "2.3.6-1~ubuntu.22.04~jammy"
+containerd_config: /etc/containerd/config.toml
+containerd_socket: unix:///run/containerd/containerd.sock
+containerd_pause_image: "registry.k8s.io/pause:3.10.2"
+docker_apt_key_url: "https://download.docker.com/linux/ubuntu/gpg"
+docker_apt_keyring: /etc/apt/keyrings/docker.asc
+docker_apt_repo: >-
+  deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc]
+  https://download.docker.com/linux/ubuntu jammy stable
+docker_apt_source: /etc/apt/sources.list.d/docker.list
+
+# --- Calico -------------------------------------------------------------
+calico_version: "v3.33.0"
+calico_manifest_url: >-
+  https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/calico.yaml
+calico_manifest_sha256: "2de8f47595fb9c41b3f47d7b767a1f8e72ecf84057af834738ff12689a234da5"
+# 只读下载源；任何 CIDR 渲染都写入独立目标，保证下次 checksum 校验仍针对上游原文。
+calico_manifest_path: "/opt/calico/calico-{{ calico_version }}.yaml"
+calico_rendered_manifest_path: "/opt/calico/rendered/calico-{{ calico_version }}-{{ pod_cidr | replace('/', '-') }}.yaml"
+calico_namespace: kube-system
+calico_node_ds: calico-node
+calico_ipv4_pool_cidr: "{{ pod_cidr }}"
+
+# --- 集群网络 -----------------------------------------------------------
+pod_cidr: "10.244.0.0/16"
+service_cidr: "10.96.0.0/12"
+cluster_dns: "10.96.0.10"
+apiserver_port: 6443
+control_plane_endpoint: "11.0.1.10:{{ apiserver_port }}"
+kubeconfig_path: /etc/kubernetes/admin.conf
+kube_user_kubeconfig: "/home/{{ ansible_user }}/.kube/config"
+
+# --- 主机基线 -----------------------------------------------------------
+# 库存主机名与实际 hostname 统一；join 冲突时 fail，不静默改名已入群节点。
+common_hostname: "{{ inventory_hostname }}"
+timezone: Asia/Shanghai
+base_packages:
+  - apt-transport-https
+  - ca-certificates
+  - conntrack
+  - curl
+  - ebtables
+  - ethtool
+  - ipset
+  - gnupg
+  - jq
+  - socat
+  - software-properties-common
+  - systemd-timesyncd
+kernel_modules:
+  - overlay
+  - br_netfilter
+
+# --- 后续阶段保留期与容量（阶段 1 仅集中管理，不部署观测组件）----------
+monitoring_namespace: monitoring
+logging_namespace: logging
+argocd_namespace: argocd
+prometheus_retention: "7d"
+prometheus_retention_size: "8GB"
+prometheus_pvc_size: "10Gi"
+alertmanager_pvc_size: "2Gi"
+grafana_pvc_size: "5Gi"
+loki_retention: "72h"
+loki_pvc_size: "20Gi"
+local_path_provisioner_namespace: local-path-storage
+acceptance_test_image: "busybox:1.36.1"
+
+# 主代理已确认的实际容量；阶段 3/4 前仍需按负载重新核算。
+capacity_plan:
+  master_vcpu: 2
+  master_memory_gb: 4
+  master_disk_gb: 50
+  worker_vcpu: 4
+  worker_memory_gb: 12
+  worker_disk_gb: 100
+  prometheus_retention_bytes: 8589934592

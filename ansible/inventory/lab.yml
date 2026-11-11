@@ -1,0 +1,19 @@
+---
+# 实验室 inventory。只保存地址和用户名，不保存密码、私钥或 token。
+# 认证由执行环境中的 SSH agent/key 或用户已配置的方式提供。
+all:
+  children:
+    k8s_cluster:
+      children:
+        kube_control_plane:
+          hosts:
+            master:
+              ansible_host: 11.0.1.10
+              ansible_user: myt
+        kube_workers:
+          hosts:
+            worker:
+              ansible_host: 11.0.1.11
+              ansible_user: myt
+      vars:
+        ansible_python_interpreter: /usr/bin/python3

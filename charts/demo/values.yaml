@@ -1,0 +1,78 @@
+# 默认只创建 Deployment + ClusterIP Service。
+# ServiceMonitor 默认关闭；关闭时模板完全不渲染，因而不依赖 monitoring.coreos.com CRD。
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/example/observability-demo
+  # 留空时使用 Chart.yaml 的 appVersion；也可以显式固定 tag。
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# 发布元数据，会写入 /version 与 /work 响应，便于核对 Deployment 实际运行的版本。
+# appVersion 留空时使用 Chart.yaml 的 appVersion。
+appVersion: ""
+gitSha: "unknown"
+
+# 普通环境变量；修改后会改变 Pod template，从而触发 Deployment rollout。
+env:
+  APP_ENV: "development"
+  DEMO_ERROR_RATE: "0"
+  DEMO_LATENCY_MS: "0"
+  DEMO_STARTUP_FAIL: "false"
+
+# 追加环境变量（list 形式，可引用 secretKeyRef 等）。不要重复 APP_VERSION/GIT_SHA。
+extraEnv: []
+
+service:
+  port: 8080
+  annotations: {}
+
+# 需要 Prometheus Operator 的 CRD 才可启用。namespace 留空则与 release 同 namespace。
+serviceMonitor:
+  enabled: false
+  namespace: ""
+  interval: 15s
+  scrapeTimeout: 10s
+  scheme: http
+  path: /metrics
+  # 给 Prometheus 的 serviceMonitorSelector 使用的额外标签，例如 release: kube-prometheus-stack。
+  labels: {}
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 250m
+    memory: 192Mi
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  privileged: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 10001
+  capabilities:
+    drop:
+      - ALL
+
+podAnnotations: {}
+
+# 默认不设置 nodeSelector/tolerations/affinity：
+# master 的 NoSchedule taint 会自然把 Pod 限制到 worker，不在此硬编码 worker 主机名。
+nodeSelector: {}
+tolerations: []
+affinity: {}

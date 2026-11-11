@@ -1,0 +1,80 @@
+---
+- name: Ensure apt keyring directory exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install Kubernetes apt signing key
+  ansible.builtin.get_url:
+    url: "{{ k8s_apt_key_url }}"
+    dest: "{{ k8s_apt_keyring }}"
+    owner: root
+    group: root
+    mode: "0644"
+    force: false
+    timeout: 30
+
+- name: Configure pinned Kubernetes apt repository
+  ansible.builtin.copy:
+    dest: "{{ k8s_apt_source }}"
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      {{ k8s_apt_repo }}
+  register: k8s_repo
+
+- name: Refresh apt cache after Kubernetes repository change
+  ansible.builtin.apt:
+    update_cache: true
+  when: k8s_repo.changed
+
+- name: Ensure apt cache is available
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Install pinned kubelet, kubeadm and kubectl
+  ansible.builtin.apt:
+    name:
+      - "kubelet={{ k8s_package_version }}"
+      - "kubeadm={{ k8s_package_version }}"
+      - "kubectl={{ k8s_package_version }}"
+    state: present
+    allow_downgrade: true
+    allow_change_held_packages: true
+
+- name: Hold Kubernetes package versions
+  ansible.builtin.dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  loop: "{{ kube_packages }}"
+
+- name: Enable kubelet without forcing it to start before init/join
+  ansible.builtin.systemd:
+    name: kubelet
+    enabled: true
+
+- name: Read installed kubeadm version
+  ansible.builtin.command:
+    argv:
+      - timeout
+      - "15"
+      - kubeadm
+      - version
+      - -o
+      - short
+  register: kubeadm_installed
+  changed_when: false
+
+- name: Assert installed kubeadm matches the pinned version
+  ansible.builtin.assert:
+    that:
+      - (kubeadm_installed.stdout | trim) == ('v' ~ k8s_version)
+    fail_msg: >-
+      kubeadm version mismatch: expected v{{ k8s_version }},
+      got {{ kubeadm_installed.stdout | trim }}.
+    success_msg: "kubeadm {{ kubeadm_installed.stdout | trim }} is installed."

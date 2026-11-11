@@ -1,0 +1,173 @@
+---
+- name: Check whether the control plane has already been initialized
+  ansible.builtin.stat:
+    path: "{{ kubeconfig_path }}"
+  register: admin_conf
+
+- name: Check for a partially written control-plane manifest
+  ansible.builtin.stat:
+    path: /etc/kubernetes/manifests/kube-apiserver.yaml
+  register: apiserver_manifest
+
+- name: Refuse to initialize over a partial control plane
+  ansible.builtin.fail:
+    msg: >-
+      /etc/kubernetes/manifests/kube-apiserver.yaml exists but
+      {{ kubeconfig_path }} is missing. Refusing to run kubeadm init over a
+      partial control plane. Inspect the node and recover deliberately.
+  when:
+    - not admin_conf.stat.exists
+    - apiserver_manifest.stat.exists
+
+- name: Validate an existing control plane without re-initializing it
+  when: admin_conf.stat.exists
+  block:
+    - name: Check API readiness endpoint
+      ansible.builtin.command:
+        argv:
+          - timeout
+          - "20"
+          - kubectl
+          - --kubeconfig
+          - "{{ kubeconfig_path }}"
+          - --request-timeout=15s
+          - get
+          - --raw=/readyz
+      register: existing_readyz
+      changed_when: false
+      failed_when: false
+
+    - name: Check that nodes can be read from the existing cluster
+      ansible.builtin.command:
+        argv:
+          - timeout
+          - "20"
+          - kubectl
+          - --kubeconfig
+          - "{{ kubeconfig_path }}"
+          - --request-timeout=15s
+          - get
+          - nodes
+          - -o
+          - name
+      register: existing_nodes
+      changed_when: false
+      failed_when: false
+
+    - name: Read the existing cluster server version
+      ansible.builtin.command:
+        argv:
+          - timeout
+          - "20"
+          - kubectl
+          - --kubeconfig
+          - "{{ kubeconfig_path }}"
+          - --request-timeout=15s
+          - version
+          - -o
+          - json
+      register: existing_version
+      changed_when: false
+      failed_when: false
+
+    - name: Parse the existing cluster server version safely
+      ansible.builtin.set_fact:
+        existing_server_version: >-
+          {{ ((existing_version.stdout | from_json).get('serverVersion', {}).get('gitVersion', ''))
+             if existing_version.rc == 0 else '' }}
+
+    - name: Fail instead of re-initializing an unhealthy or wrong-version cluster
+      ansible.builtin.assert:
+        that:
+          - existing_readyz.rc == 0
+          - existing_nodes.rc == 0
+          - existing_version.rc == 0
+          - existing_server_version == ('v' ~ k8s_version)
+        fail_msg: >-
+          {{ kubeconfig_path }} exists, but the existing cluster is not a
+          healthy {{ k8s_version }} cluster (readyz rc={{ existing_readyz.rc }},
+          nodes rc={{ existing_nodes.rc }}, version rc={{ existing_version.rc }}).
+          Refusing to re-run kubeadm init. The legacy cluster, if any, must be
+          cleaned deliberately before this playbook can initialize 1.37.2.
+        success_msg: "Existing control plane is healthy and matches {{ k8s_version }}."
+
+- name: Initialize the control plane when absent
+  when: not admin_conf.stat.exists
+  block:
+    - name: Create a root-only kubeadm init log
+      ansible.builtin.file:
+        path: /var/log/kubeadm-init.log
+        state: touch
+        owner: root
+        group: root
+        mode: "0600"
+        modification_time: preserve
+        access_time: preserve
+
+    - name: Run kubeadm init with pinned versions, timeouts and explicit CIDRs
+      ansible.builtin.shell: |
+        set -o pipefail
+        timeout 600 kubeadm init \
+          --kubernetes-version "v{{ k8s_version }}" \
+          --apiserver-advertise-address "{{ ansible_host }}" \
+          --pod-network-cidr "{{ pod_cidr }}" \
+          --service-cidr "{{ service_cidr }}" \
+          --cri-socket "{{ containerd_socket }}" \
+          --node-name "{{ common_hostname }}" \
+          2>&1 | tee /var/log/kubeadm-init.log
+      args:
+        executable: /bin/bash
+      no_log: true
+
+- name: Re-check admin.conf after init or health validation
+  ansible.builtin.stat:
+    path: "{{ kubeconfig_path }}"
+  register: admin_conf_after
+
+- name: Assert the control plane produced admin.conf
+  ansible.builtin.assert:
+    that:
+      - admin_conf_after.stat.exists
+    fail_msg: >-
+      kubeadm did not produce {{ kubeconfig_path }}. Inspect
+      /var/log/kubeadm-init.log on the control-plane node (root-only).
+    success_msg: "Control-plane admin.conf is present."
+
+- name: Ensure the management user's .kube directory exists
+  ansible.builtin.file:
+    path: "{{ kube_user_kubeconfig | dirname }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0700"
+
+- name: Install admin kubeconfig for the management user
+  ansible.builtin.copy:
+    src: "{{ kubeconfig_path }}"
+    dest: "{{ kube_user_kubeconfig }}"
+    remote_src: true
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0600"
+
+- name: Read control-plane node status as the management user
+  ansible.builtin.command:
+    argv:
+      - timeout
+      - "20"
+      - kubectl
+      - --request-timeout=15s
+      - get
+      - nodes
+      - -o
+      - wide
+  become: true
+  become_user: "{{ ansible_user }}"
+  environment:
+    KUBECONFIG: "{{ kube_user_kubeconfig }}"
+  register: control_plane_nodes
+  changed_when: false
+
+- name: Show control-plane node status
+  ansible.builtin.debug:
+    var: control_plane_nodes.stdout_lines

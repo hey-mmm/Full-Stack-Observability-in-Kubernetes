@@ -1,0 +1,133 @@
+---
+- name: Ensure apt keyring directory exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install Docker apt signing key
+  ansible.builtin.get_url:
+    url: "{{ docker_apt_key_url }}"
+    dest: "{{ docker_apt_keyring }}"
+    owner: root
+    group: root
+    mode: "0644"
+    force: false
+    timeout: 30
+
+- name: Configure Docker apt repository for jammy
+  ansible.builtin.copy:
+    dest: "{{ docker_apt_source }}"
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      {{ docker_apt_repo }}
+  register: docker_repo
+
+- name: Refresh apt cache after Docker repository change
+  ansible.builtin.apt:
+    update_cache: true
+  when: docker_repo.changed
+
+- name: Ensure apt cache is available
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Install pinned containerd.io
+  ansible.builtin.apt:
+    name: "containerd.io={{ containerd_version }}"
+    state: present
+    allow_downgrade: true
+    allow_change_held_packages: true
+  notify: Restart containerd
+
+- name: Hold containerd.io package version
+  ansible.builtin.dpkg_selections:
+    name: containerd.io
+    selection: hold
+
+- name: Ensure containerd configuration directory exists
+  ansible.builtin.file:
+    path: "{{ containerd_config | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install deterministic containerd v3 configuration
+  ansible.builtin.template:
+    src: config.toml.j2
+    dest: "{{ containerd_config }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart containerd
+
+- name: Ensure containerd is enabled and running
+  ansible.builtin.systemd:
+    name: containerd
+    state: started
+    enabled: true
+
+- name: Apply containerd configuration before Kubernetes starts
+  ansible.builtin.meta: flush_handlers
+
+- name: Wait for containerd CRI socket
+  ansible.builtin.wait_for:
+    path: /run/containerd/containerd.sock
+    timeout: 30
+
+- name: Verify containerd v3 config enables the systemd cgroup driver
+  ansible.builtin.command:
+    argv:
+      - timeout
+      - "10"
+      - grep
+      - -Eq
+      - '^[[:space:]]*SystemdCgroup[[:space:]]*=[[:space:]]*true'
+      - "{{ containerd_config }}"
+  changed_when: false
+
+- name: Verify the configured pause image is pinned in config v3
+  ansible.builtin.command:
+    argv:
+      - timeout
+      - "10"
+      - grep
+      - -Fq
+      - "sandbox = '{{ containerd_pause_image }}'"
+      - "{{ containerd_config }}"
+  changed_when: false
+
+- name: Read containerd plugin list
+  ansible.builtin.command:
+    argv:
+      - timeout
+      - "20"
+      - ctr
+      - --address
+      - /run/containerd/containerd.sock
+      - plugins
+      - ls
+  register: containerd_plugins
+  changed_when: false
+  retries: 6
+  delay: 5
+  until: >-
+    containerd_plugins.rc == 0 and
+    'io.containerd.cri.v1.runtime' in containerd_plugins.stdout and
+    'io.containerd.cri.v1.images' in containerd_plugins.stdout
+
+- name: Assert CRI runtime and image plugins are loaded
+  ansible.builtin.assert:
+    that:
+      - "'io.containerd.cri.v1.runtime' in containerd_plugins.stdout"
+      - "'io.containerd.cri.v1.images' in containerd_plugins.stdout"
+    fail_msg: >-
+      containerd is running but the CRI runtime/image plugins are not loaded.
+      Inspect journalctl -u containerd and the rendered config.
+    success_msg: "containerd CRI runtime and image plugins are loaded."

@@ -1,0 +1,10 @@
+---
+# 固定版本；核实日期 2026-11-11。
+# 控制端使用 uv 管理的 Python 3.12.9 + ansible-core 2.21.6（当前支持线）。
+collections:
+  - name: ansible.posix
+    version: "2.2.2"
+  - name: community.general
+    version: "14.0.1"
+  - name: kubernetes.core
+    version: "6.6.0"

@@ -1,0 +1,127 @@
+---
+- name: Check whether this worker has already joined a cluster
+  ansible.builtin.stat:
+    path: /etc/kubernetes/kubelet.conf
+  register: kubelet_conf
+
+- name: Validate an existing kubelet enrollment belongs to this cluster
+  when: kubelet_conf.stat.exists
+  block:
+    - name: Read the target API server from the existing kubelet kubeconfig
+      ansible.builtin.command:
+        argv:
+          - timeout
+          - "15"
+          - kubectl
+          - config
+          - view
+          - --kubeconfig
+          - /etc/kubernetes/kubelet.conf
+          - --minify
+          - -o
+          - 'jsonpath={.clusters[0].cluster.server}'
+      register: existing_kubelet_server
+      changed_when: false
+      failed_when: false
+
+    - name: Fail if the existing kubelet points at a different cluster
+      ansible.builtin.assert:
+        that:
+          - existing_kubelet_server.rc == 0
+          - (existing_kubelet_server.stdout | trim) == ('https://' ~ control_plane_endpoint)
+        fail_msg: >-
+          /etc/kubernetes/kubelet.conf exists but does not point at
+          https://{{ control_plane_endpoint }}. Refusing to assume this worker
+          belongs to the target cluster; clean the legacy enrollment first.
+        success_msg: "Existing kubelet kubeconfig targets the expected API server."
+
+    - name: Check the worker Node object and InternalIP in the target cluster
+      ansible.builtin.command:
+        argv:
+          - timeout
+          - "20"
+          - kubectl
+          - --kubeconfig
+          - "{{ kubeconfig_path }}"
+          - --request-timeout=15s
+          - get
+          - node
+          - "{{ common_hostname }}"
+          - -o
+          - 'jsonpath={.status.addresses[?(@.type=="InternalIP")].address}'
+      delegate_to: "{{ groups['kube_control_plane'][0] }}"
+      become: true
+      register: existing_worker_node
+      changed_when: false
+      failed_when: false
+
+    - name: Fail if the enrolled worker is absent or has a different IP
+      ansible.builtin.assert:
+        that:
+          - existing_worker_node.rc == 0
+          - (existing_worker_node.stdout | trim) == ansible_host
+        fail_msg: >-
+          kubelet.conf exists, but node/{{ common_hostname }} is absent from the
+          target cluster or its InternalIP is not {{ ansible_host }}. The
+          enrollment is orphaned; recover deliberately instead of rejoining.
+        success_msg: "Existing worker enrollment is healthy in the target cluster."
+
+- name: Join the worker only when no kubelet enrollment exists
+  when: not kubelet_conf.stat.exists
+  block:
+    - name: Generate a short-lived join command on the control plane
+      ansible.builtin.command:
+        argv:
+          - timeout
+          - "30"
+          - kubeadm
+          - token
+          - create
+          - --print-join-command
+      delegate_to: "{{ groups['kube_control_plane'][0] }}"
+      become: true
+      register: join_command
+      changed_when: true
+      no_log: true
+
+    - name: Validate the generated join command shape
+      ansible.builtin.assert:
+        that:
+          - (join_command.stdout | trim) is search('^kubeadm join ')
+        fail_msg: "The control plane did not return a valid kubeadm join command."
+      no_log: true
+
+    - name: Join the worker without waiting for CNI-dependent Node readiness
+      ansible.builtin.command:
+        argv:
+          - timeout
+          - "600"
+          - /bin/bash
+          - -c
+          - >-
+            {{ join_command.stdout | trim }} --cri-socket {{ containerd_socket }}
+            --node-name {{ common_hostname }}
+      changed_when: true
+      no_log: true
+
+- name: Wait only for the Node object to be registered in the target API
+  ansible.builtin.command:
+    argv:
+      - timeout
+      - "20"
+      - kubectl
+      - --kubeconfig
+      - "{{ kubeconfig_path }}"
+      - --request-timeout=15s
+      - get
+      - node
+      - "{{ common_hostname }}"
+      - -o
+      - name
+  delegate_to: "{{ groups['kube_control_plane'][0] }}"
+  become: true
+  register: registered_worker_node
+  changed_when: false
+  until: registered_worker_node.rc == 0
+  retries: 30
+  delay: 5
