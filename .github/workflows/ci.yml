@@ -154,3 +154,5 @@ jobs:
             echo ""
             echo "GitOps 不会自动提交：验证后由人工/主代理把 \`gitops/demo/values.yaml\` 的镜像占位替换为实际不可变 tag/digest。"
           } >> "$GITHUB_STEP_SUMMARY"
+
+# Harmless acceptance marker: trusted policy must require independent maintenance.
