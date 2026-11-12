@@ -1,0 +1,5 @@
+ERROR: Argo Application demo 的 auto-sync 已启用；请加 --suspend-gitops（仅暂停 demo）后重试
+Thu Nov 12 01:08:49 AM UTC 2026
+PASS: injection refused with exit=1 until --suspend-gitops is supplied
+PASS: Deployment generation unchanged 14 -> 14
+PASS: Application generation unchanged 33 -> 33

@@ -5,9 +5,9 @@
 不包含部署、镜像构建/发布或集群操作。目标环境为 Ubuntu 22.04、Kubernetes 1.37.2，
 1 个带 `NoSchedule` taint 的 master 和 1 个运行工作负载的 worker。
 
-> 当前镜像仓库/标签只是 Chart 默认占位值，镜像**尚未构建、扫描或发布**，
-> 因此不能据此宣称服务已在集群中可运行。部署前必须先构建镜像并写入实际
-> `image.repository`/`image.tag`，再通过 `/version` 核对 `appVersion` 与 `gitSha`。
+> 当前部署已使用 GHCR 的不可变 `sha-c0bff8ab...`（与 `gitops/demo/values.yaml` 一致），Actions 已构建发布，集群运行验收 **7/7 PASS**。Chart 内的默认镜像值只是未配置环境的占位，不能当作本次部署值。
+>
+> 项目最终状态见 [README](../README.md)；示例服务的实际运行与测试证据见 `evidence/stage2-service.txt`、`evidence/service-unit-tests.txt`。
 
 ## 1. 组件与边界
 
@@ -221,7 +221,7 @@ docker build -f app/Dockerfile -t registry.example.com/observability/demo:0.1.0 
 Dockerfile 使用 `python:3.13.9-slim-bookworm`，先安装固定版本依赖再复制源码，
 以 UID/GID 10001 非 root 运行，`EXPOSE 8080`，单 worker。Python 3.13 仍在安全
 支持期，但镜像**未在本阶段构建**；CI 中应补充构建、漏洞扫描、推送和镜像摘要
-固定（后续由主代理安排）。若使用 digest 固定，需要在 Chart 中增加 digest 支持
+固定（后续由操作者安排）。若使用 digest 固定，需要在 Chart 中增加 digest 支持
 或把 tag 写成不可变 digest 引用，当前 Chart 只支持 repository/tag。
 
 ## 8. 本地/转发验收
@@ -294,17 +294,12 @@ python -m unittest discover -s app/tests -v
 指标及探针隔离、500+延迟注入、启动失败日志与拒启、非法 error rate、故障配置
 不可变。
 
-本阶段未能验证/不在范围内：
+实际结果与剩余边界：
 
-- 未安装 `helm`，因此未执行 `helm lint`/`helm template`（模板已按 Helm v3 编写，
-  但需要主代理在装有 helm 的环境复核）。
-- 本机没有可用的 bash 运行时（Windows sandbox 下 MSYS bash 无法创建信号管道），
-  因此 `traffic.sh`/`acceptance/app.sh` 未实际执行；已做静态审查，并用等价的
-  HTTP smoke 检查验证了服务端行为（health/ready/version/metrics/request_id）。
-- 未构建 Docker 镜像，未执行容器内非 root/只读根文件系统验证；基础镜像 tag
-  `python:3.13.9-slim-bookworm` 需在 CI 拉取时确认可用。
-- 未部署到 Kubernetes，未验证真实 Pod/ServiceMonitor/Prometheus 抓取、调度到
-  worker 的结果；这些依赖阶段 3+ 的集群和监控组件。
-- serviceMonitor selector 的具体 Prometheus 选择规则需与监控组件协调。
-- 依赖的传递依赖（starlette/pydantic/anyio 等）由 pip 在构建时解析；直接依赖已
-  用 `==` 固定，若要求完全可复现，CI 应额外生成并校验锁文件。
+- 8 项单元测试全部通过，证据 `evidence/service-unit-tests.txt`。
+- 集群运行验收 7/7：探针、`/version`、`/metrics`、`/work` request_id、状态码计数、探针不写 SLI，证据 `evidence/stage2-service.txt`。
+- 镜像已由 Actions 构建并推送到 GHCR，使用 `sha-<commit>` 不可变 tag；未使用 `latest`。
+- 已在 worker 上运行，Prometheus 通过 ServiceMonitor 抓取 demo，`--phase metrics` 16/16 覆盖真实样本与 target up。
+- 容器仍以非 root、只读根文件系统运行；具体安全上下文以 Chart 和集群实际 Pod 为准。
+- Chart 只支持 `image.repository + image.tag`，尚不支持 digest 引用；当前用不可变 SHA tag。
+- 传递依赖由 pip 在构建时解析；直接依赖已用 `==` 固定，若要更强可复现性，CI 可再加锁文件校验。

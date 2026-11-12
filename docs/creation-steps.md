@@ -13,6 +13,8 @@
 
 NAT 网关与 DNS 为 `11.0.1.2`。VM 文件在 `G:\Blog\`。固定地址位于本机 DHCP 池之外；其他宿主机重建时先核对 VMware 网络编辑器，不能照搬网关。Netplan 配置采用 `ens33`、`dhcp4: false`、对应节点地址、默认路由和上述 DNS。通过 VM 控制台使用 `sudo netplan try` 验证后应用。
 
+时间同步不使用 `ntp.ubuntu.com`（代理 DNS 会返回 fake-IP，曾造成约 5–6 秒偏差）；固定为 UDP 可达的 `203.107.6.88`、`120.25.115.20`，最终两节点 `NTPSynchronized=yes`。
+
 虚拟磁盘扩容后，须在客体用 `lsblk` 核对分区及 LVM，再扩展分区、PV、LV、文件系统；仅在 VMware 增大磁盘不会扩大 Ubuntu 根目录。本次两台是 `/dev/sda3` 和 `/dev/ubuntu-vg/ubuntu-lv`，实际执行了 `growpart`、`pvresize`、`lvextend -r`。这些设备名不能盲用于其他机器。
 
 旧集群的清理由用户单独授权执行，**日常 playbook 不执行 reset**。重新运行 Ansible 不应删除 etcd 或重新初始化控制面。
@@ -37,7 +39,17 @@ ansible-galaxy collection install -r ansible/requirements.yml -p ansible/collect
 
 单独安装 Python 3.12，不覆盖 Ubuntu 的系统 Python。配置 master 到两节点的专用 SSH 公钥认证，并核对、保存 SSH 主机指纹。检查 `ansible/inventory/lab.yml` 的地址和 `ansible/group_vars/all.yml` 的版本与网络参数。使用 sudo 密码时，以下 playbook 命令加 `--ask-become-pass`；不要把 sudo 密码写入 inventory。
 
-本环境下载通过宿主机代理 `http://11.0.1.1:7890`。代理需允许 VM 连接，节点、Pod、Service 网段加入 NO_PROXY。直连环境把 inventory 的 `lab_containerd_http_proxy` 设为空。代理与镜像校验细节见 [network-proxy.md](network-proxy.md)。bootstrap 的 pip/uv/Galaxy 下载也需可用的出网连接，可按网络环境设置 HTTP_PROXY/HTTPS_PROXY/NO_PROXY。
+本机已配置的专用密钥和主机指纹文件可这样选用；在仓库根目录执行，随后再 `cd ansible`：
+
+```bash
+export ANSIBLE_PRIVATE_KEY_FILE="$HOME/.ssh/observability_host"
+export ANSIBLE_SSH_ARGS="-o UserKnownHostsFile=$HOME/.ssh/observability_host_known_hosts"
+export ANSIBLE_CONFIG="$PWD/ansible/ansible.cfg"
+```
+
+在新环境首次配置时，先用 `ssh-keygen` 创建自己的密钥，将公钥安装到两节点，并通过 VM 控制台核对主机指纹；不能复制本机私钥。`ansible.cfg` 使用当前版本支持的 `collections_path` 指向仓库内 collections。实施结束已移除临时免密 sudo，后续命令需要 `--ask-become-pass`。
+
+本环境下载通过宿主机代理 `http://11.0.1.1:7890`。代理需允许 VM 连接，节点、Pod、Service 网段加入 NO_PROXY。直连环境把 inventory 的 `lab_containerd_http_proxy` 设为空，并将 `ansible/roles/argocd/files/values.yaml` 的 `repoServer.env` 设为 `[]`。代理与镜像校验细节见 [network-proxy.md](network-proxy.md)。bootstrap 的 pip/uv/Galaxy 下载也需可用的出网连接，可按网络环境设置 HTTP_PROXY/HTTPS_PROXY/NO_PROXY。
 
 ## 3. 用 Ansible 建立集群
 
@@ -116,6 +128,14 @@ bash scripts/drills/recover.sh --drill-id <输出的ID>
 
 保存故障开始、告警收到、根因确认、服务恢复四个时间；恢复通知另记录。启动失败使用 maxUnavailable=0，预期新 Pod 失败而旧 Pod 继续服务，这验证发布保护。Prometheus/Loki 持久化演练先保存带原时间戳的查询结果，再删除对应 Pod，等待同一 PVC 恢复挂载，查询**重建前**的样本或日志。只检查新 Pod Running 不能证明数据保留。
 
+持久化演练必须显式加 `--run`，否则脚本拒绝执行；它只重建固定的 Prometheus/Loki Pod，不删除 PVC、不碰其他 namespace：
+
+```bash
+bash scripts/drills/persistence.sh --run
+```
+
+本次结果为 `PASS`：两个 Pod 的 UID 改变、PVC 不变，固定查询的指标值 67 前后一致，原日志时间戳与全文精确匹配，见 `docs/evidence/persistence.json`。
+
 ## 7. 接管 GitOps，验证发布和 Git 回退
 
 ```bash
@@ -126,7 +146,16 @@ ansible-playbook -i inventory/lab.yml playbooks/gitops.yml --tags application --
 
 Argo CD 非 HA 部署。AppProject 只允许本仓库向 demo 命名空间发布指定资源，基础组件由 Ansible 管理。确认 Application 的 Synced、Healthy 和 `/version` 一致，再在 Git 中更新到另一个已成功构建的 SHA，验证新版本；最后 `git revert <修改镜像的提交>` 并 push，等待 Argo 同步、验证旧版本恢复。`kubectl rollout undo` 不能替代 GitOps 回退证据。
 
-具体命令及权限见 [argocd-setup.md](argocd-setup.md)。
+本次已实测：`9b4f688` 发布镜像 `10462f1`，`60d5dea` 用 Git revert 回退到 `c0bff8a`，均 Synced/Healthy 且实际接口通过。完整时间线见 [gitops-acceptance.md](gitops-acceptance.md)。独立复核可执行：
+
+```bash
+python3 scripts/acceptance/gitops.py \
+  --image-sha <gitops-values中的40位镜像SHA> \
+  --git-revision <当前已同步的40位Git提交SHA> \
+  --output /tmp/gitops-check.json
+```
+
+具体安装命令及权限见 [argocd-setup.md](argocd-setup.md)。
 
 ## 8. 访问和日常运行
 

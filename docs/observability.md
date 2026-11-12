@@ -1,14 +1,12 @@
 # 阶段 3/4：Kubernetes 可观测性与持久化配置
 
-本文件描述**已编写的代码和固定参数**，不代表已经部署或通过验收。当前没有在
-目标 VM 上执行 `platform.yml`，没有构建/推送 demo 镜像，也没有执行 Pod 重建、
-故障注入或恢复演练。实际结果必须以 `scripts/acceptance/observability.sh` 的真实
-查询输出和主代理的独立验收为准。
+本文件描述固定参数、执行顺序和**实际验收结果**。平台已部署并通过：local-path **4/4**、指标与告警 **16/16**、日志 **10/10**，Prometheus/Loki Pod 重建后的持久化演练 **PASS**。原始输出见 `evidence/storage.txt`、`stage3-metrics.txt`、`stage4-logging.txt`、`persistence.json`。
+
+> 平台组件由 Ansible/Helm 管理。Argo CD 只管理 demo，发布与 Git 回退已通过，见 [gitops-acceptance.md](gitops-acceptance.md)。
 
 ## 1. 范围与边界
 
-本阶段代码独占以下路径，未修改 `site.yml`、现有 roles、`group_vars`、
-`charts/demo`、`scripts/traffic.sh` 或 ArgoCD 相关文件：
+平台配置及验收的主要文件：
 
 ```text
 ansible/playbooks/platform.yml
@@ -19,8 +17,7 @@ scripts/acceptance/observability.sh
 docs/observability.md
 ```
 
-- 平台组件由 Ansible + Helm 管理；Argo CD 的安装文件已在阶段 6 准备，但本次
-  未部署/未验收；Argo 只注册 demo 应用。
+- 平台组件由 Ansible + Helm 管理；Argo CD 只同步 demo 应用，平台组件不经 Argo。
 - master `11.0.1.10` 保留控制面 `NoSchedule` taint，只运行 node-exporter 和
   Alloy 等 DaemonSet；有状态组件调度到 worker `11.0.1.11`。
 - local-path 只保证 **Pod 重建后 PVC/PV 仍在**。它不是副本存储，也不防节点
@@ -217,8 +214,7 @@ receivers:
 
 ## 8. 执行顺序与命令行
 
-以下命令都应在 master 的仓库根目录、使用阶段 1 已准备好的 Ansible 环境执行。
-本阶段没有在本机运行它们；不要在没有逐步验收的情况下一次运行全部。
+以下命令已按顺序实际执行，保留作为复跑说明。复跑时应逐步验收，不要在未确认前一次运行全部。
 
 ```bash
 cd ansible
@@ -293,7 +289,7 @@ patch。它通过 kubectl 只读查询和临时 port-forward 真实访问 API：
   - Loki PVC 10Gi Bound，PV reclaimPolicy Delete。
 
 脚本**不会**自动删除 Prometheus/Loki Pod，也不会执行数据重建。持久化和故障
-重建演练由主代理在验收窗口单独执行；脚本只在演练完成后验证查询结果和事件。
+重建演练由操作者在验收窗口单独执行；脚本只在演练完成后验证查询结果和事件。
 脚本要求 demo 已经产生过真实流量，否则 metrics 阶段会明确失败而不是伪造数据。
 
 手工查看 Grafana：
@@ -311,33 +307,24 @@ kubectl -n monitoring port-forward svc/alert-receiver 8080:8080
 curl -s 'http://127.0.0.1:8080/alerts?limit=5'
 ```
 
-## 10. 未完成、风险与待验证项
+## 10. 实际验收、边界与仍待项
 
-- **未部署、未验收、未 push**。本文中的资源合计和版本兼容性是静态评审结果。
-- 未构建/扫描/推送 demo 镜像；`charts/demo/values.yaml` 的镜像仓库仍是占位值。
-  ServiceMonitor 只有在 demo 实际安装且 `serviceMonitor.enabled=true`、
-  `serviceMonitor.labels.release=monitoring` 时才存在。
-- 未执行 Prometheus/Loki Pod 重建、PVC 重建、节点故障或任何真实告警演练；
-  receiver 没有同一 fingerprint 的 `DemoHighErrorRate` firing/resolved 对时脚本
-  会失败；`--allow-empty-alerts` 仅空事件 smoke，退出码 3，不是最终通过。
-- 现有 `ansible/group_vars/all.yml` 的 `control_plane_endpoint` 仍是
-  `11.0.1.129:6443`，而本任务给定的 master 固定地址是 `11.0.1.10`；本阶段
-  未修改 group_vars，需由 group_vars 的维护者在阶段 1/2 收口。平台角色只使用
-  `kubeconfig_path` 和节点名称，不自行改网络配置。
-- 现有 group_vars 的保留期/PVC 值（Prometheus 10Gi、Loki 20Gi、Alertmanager
-  2Gi、Grafana 5Gi）与本阶段平台 values（10Gi、10Gi、1Gi、2Gi）不同。为避免
-  覆盖其他任务的变量，平台采用独立的 `ansible/roles/platform/vars/main.yml`；
-  以平台 values 为准，但这需要在总体验收时明确，避免误读。
-- local-path 官方 v0.0.37 清单自带的 helper Pod 默认使用未固定 tag 的
-  `docker.io/library/busybox`。本阶段的独立渲染目标已将其固定为
-  `docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec`；上游源文件仍保持
-  原样。该 digest 仍需在总体验收时复核。
-- 单 worker + local-path 没有磁盘配额、备份、跨节点迁移、HA 或灾难恢复。
-  master 只有 4 GiB，未把 Prometheus/Loki/Grafana 调度到 master；实际启动
-  仍需观察 worker 内存和 `/opt/local-path-provisioner` 磁盘。
-- Alertmanager 的 receiver 只做本地 JSONL 记录，没有认证、TLS、external
-  notification 或可靠投递保证；不能把“收到 webhook”等同于“发送了邮件/聊天”。
-- Grafana Loki dashboard 链接和 Explore URL 随 Grafana 版本可能变化；JSON
-  中的日志面板使用 datasource uid `loki`，若实际 uid 不同需在 Grafana 中调整。
-- Argo CD 安装代码已在阶段 6 单独准备，但本阶段未部署/未验收；即使安装，
-  Argo 也只管理 demo 应用，基础组件仍由 Ansible 管理。
+**已通过**：
+
+- `--phase storage`：**4/4**。local-path 默认类、`WaitForFirstConsumer`、`Delete`、provisioner 可用。
+- `--phase metrics`：**16/16**。两节点、PVC Bound、19 个 active target、4 条告警/5 条记录规则、demo 指标与 bucket、Grafana 数据源/dashboard、同一 fingerprint 的 firing/resolved。
+- `--phase logging`：**10/10**。Loki 两节点真实日志流、Alloy desired/ready=2、只读 `/var/log/pods`、Loki PVC Bound。
+- 持久化：`scripts/drills/persistence.sh --run` 重建固定 Prometheus/Loki Pod，PVC 不变；指标 67 前后一致，旧日志精确匹配，`persistence.json` 为 `PASS`。
+- 三项故障演练完成，见 `fault-review.md`；500/慢请求恢复后收到同 fingerprint resolved，启动失败时旧 Pod 继续服务。
+
+**边界与风险**：
+
+- 单 worker + local-path 没有磁盘配额、备份、跨节点迁移、HA 或灾难恢复；节点磁盘损坏会丢指标/日志。
+- Prometheus 为 7d/8GB，Loki 为 72h；PVC 的 10Gi 是请求量，不是文件系统硬配额。
+- Alertmanager 只发本地 JSON webhook，不代表邮件/短信/聊天已接入；receiver 无认证/TLS/长期归档保证。
+- Alloy positions 未持久化，允许重复投递，不承诺 exactly-once。
+- 7 天 SLO 99.9% 是练习目标，尚未积累完整窗口，不宣称达标。
+- 监控**不包含**只监听 localhost 的 etcd/scheduler/controller-manager/kube-proxy 指标；不创建不可达 target。
+- NTP 固定为 `203.107.6.88`、`120.25.115.20`；两节点已 `NTPSynchronized=yes`。此前 `ntp.ubuntu.com` 的 fake-IP 偏差保留在原始记录中。
+- GitOps 发布与 Git 回退已通过，原始证据与独立验收脚本见 `gitops-acceptance.md`。
+- 7 天 SLO、生产级高可用、链路追踪、Ingress/证书仍不在第一版范围。

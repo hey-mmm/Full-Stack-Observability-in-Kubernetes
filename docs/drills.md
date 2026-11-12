@@ -10,7 +10,7 @@
 - 只 patch Deployment 的 `env`，不删 Pod、不 scale、不 reset 集群、不触碰其它应用
 - 所有 kubectl API 调用都带 `--request-timeout`（默认 20s），rollout/health 有总超时
 
-**未部署、未运行本手册中的命令**。以下是准备步骤和实际待验收项。
+**本手册已在真实集群执行**：500、3000 ms 慢请求、启动失败三项均完成注入、告警、确认与恢复，时间线见 [fault-review.md](fault-review.md) 和 `evidence/drill-events.jsonl`。下面保留可复跑的命令与边界；重跑前仍要确认 GitOps 自动同步状态和当前 demo 健康。
 
 ## 1. 前置条件
 
@@ -144,7 +144,7 @@ scripts/drills/recover.sh --force-normal
   receiver 支持 Alertmanager 风格 `{"alerts":[...]}`（匹配 namespace/deployment/
   app/service=demo 且 status=firing），或 `{"firing":true|false}`。
 - `root_cause_confirmed` 默认始终是 `false`，脚本不会自动声称根因。
-  主代理/人工实际核对指标、日志、告警后，用：
+  操作者实际核对指标、日志、告警后，用：
 
 ```bash
 scripts/drills/record.sh \
@@ -172,14 +172,15 @@ GitOps 回滚；Argo CD 的历史/自愈不能替代 Git desired state 的 rever
 GitOps 的 `targetRevision: main` 是 Git 分支，不是镜像 `latest`；镜像 tag 必须
 是不可变 `sha-<commit>`。
 
-## 7. 待实际验收项
+## 7. 实际验收结果
 
-- 本目录脚本未在真实集群运行；需主代理在 demo 已部署、Argo Application 已
-  sync 后执行。
-- 未验证 Argo auto-sync 暂停/恢复在真实 Application 上的 JSON merge 行为。
-- 未验证 `kubectl patch --type=json` 对完整 env 的恢复、port-forward health、
-  alert receiver 实际响应 schema。
-- `ALERT_RECEIVER_URL` 的实际 API 路径/schema 尚未实现；当前兼容
-  `{"alerts":[...]}` 与 `{"firing":bool}`，不匹配时写 null。
-- 未验证 `maxUnavailable: 0` 下 startup-failure 旧 Pod 持续服务；需实际观察
-  Pod/RS/日志后填写事件结论。
+| 故障 | 开始 UTC | 告警 UTC | 根因确认 UTC | 恢复 UTC |
+| --- | --- | --- | --- | --- |
+| 500 | 2026-11-11T12:16:49Z | 12:18:43.140Z | 12:20:45.460Z | 12:20:47Z |
+| 慢请求 3000 ms | 2026-11-11T13:24:37Z | 13:26:43.138Z | 13:28:09.558Z | 13:28:10Z |
+| 启动失败 | 2026-11-11T13:34:21Z | 13:37:27.649Z | 13:39:15.099Z | 13:39:21Z |
+
+- 500 与慢请求均触发对应告警，恢复后收到同一 fingerprint 的 resolved；receiver 事件保存在 `evidence/demo-alerts.json`。
+- 启动失败：新 Pod `startup_failed`/CrashLoop，旧 Pod 在 `maxUnavailable: 0` 下继续 Ready 并返回 200；这是发布保护，`fault_fully_effective=false`。
+- 演练中修复了 port-forward 随旧 Pod 退出、Windows 复制脚本缺执行位、Shell 未赋值变量等问题；不把这些调试失败从原始 JSONL 中删除。
+- 仍未做：7 天 SLO 完整窗口、业务全停类演练、邮件/短信外部通知。`ALERT_RECEIVER_URL` 已按本地 receiver 的 `{"alerts":[...]}` schema 使用；不匹配时仍写 `null`，不猜测。

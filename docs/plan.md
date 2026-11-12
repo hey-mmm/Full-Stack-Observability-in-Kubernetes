@@ -71,7 +71,7 @@ Windows 宿主机
 
 ### Ansible 控制端 bootstrap
 
-Ubuntu 22.04 默认 Python 3.10 已不足以运行当前受支持的 ansible-core 组合。主代理在 master 上执行（不写入仓库凭据）：
+Ubuntu 22.04 默认 Python 3.10 已不足以运行当前受支持的 ansible-core 组合。操作者在 master 上执行（不写入仓库凭据）：
 
 ```bash
 # 1) 安装 uv（版本由 bootstrap 记录）；不要覆盖系统 python3
@@ -155,9 +155,9 @@ GitHub Actions 构建并推送 GHCR；ArgoCD 从 Git 发布新版本；通过恢
 
 ## 6. 已知风险与待验证项
 
-- master 为 2 vCPU / 4 GiB / 50 GB，worker 为 4 vCPU / 12 GiB / 100 GB；阶段 1 可运行，但完整观测栈仍需在阶段 3/4 前按实际负载核算。
-- Calico 3.33.0 对 Kubernetes 1.37 的兼容性来自官方 requirements；containerd 2.3.6 没有逐版本官方兼容矩阵，必须由阶段 1 实跑验收确认。
+- master 为 2 vCPU / 4 GiB / 50 GB，worker 为 4 vCPU / 12 GiB / 100 GB；完整平台已部署；最终资源快照见 `evidence/final-runtime.txt`，仍需持续观察真实负载。
+- Calico 3.33.0 对 Kubernetes 1.37 的兼容性来自官方 requirements；containerd 2.3.6 没有逐版本官方兼容矩阵，已由阶段 1 的 33/33 实跑验收确认本实验环境可用。
 - `common` 会把主机名显式设为 inventory 名（master/worker），并同步 `/etc/hosts` 的 `127.0.1.1`。若发现 `/etc/kubernetes/kubelet.conf` 且主机名不一致，会 fail 而不是静默改名已入群节点。
-- 旧 1.28 集群由主代理在 playbook 外清理；playbook 发现 `admin.conf` 时只校验健康和版本，发现 1.28 会 fail，绝不会自动 reset/re-init。
+- 旧 1.28 集群由操作者在 playbook 外清理；playbook 发现 `admin.conf` 时只校验健康和版本，发现 1.28 会 fail，绝不会自动 reset/re-init。
 - 若 Calico/Kubernetes 上游更新而 checksum 不同，`get_url` 会失败而不是使用未核实内容。
-- 端口转发、GHCR 权限、告警接收端等外部条件尚未配置；不得在验收报告中写成已完成。
+- 端口转发、GHCR 发布、集群镜像运行及本地告警接收端已验证；结果见 README 和 evidence。

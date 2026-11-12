@@ -1,6 +1,6 @@
 # Argo CD 安装与单应用 GitOps 准备（阶段 6）
 
-本文只描述仓库内已经写好的 Ansible 代码，**本次未 SSH、未部署、未 apply、未 commit、未 push**。
+本文描述实际部署使用的 Ansible 配置。2026-11-12 已验证 Application 发布和 Git 回退，详见 [gitops-acceptance.md](gitops-acceptance.md)。
 基础组件继续由 Ansible 管理；Argo CD 只注册示例应用 `demo`，不接管平台组件。
 
 ## 1. 固定版本与来源
@@ -17,7 +17,7 @@
 | chart sha256 | `c516b221a2380074bd2a3ed04ff6830a19fb07c3719070aa456ed02778767c4f` |
 | 本地缓存（仓库外） | `../../work/argocd-cache/argo-cd-10.17.2.tgz` |
 | Argo CD 主镜像 | `quay.io/argoproj/argocd:v3.6.1` |
-| Redis 镜像 | `ecr-public.aws.com/docker/library/redis:8.6.4-alpine` |
+| Redis 镜像 | `docker.io/library/redis:8.6.4-alpine` |
 
 Ansible 安装时使用同一版本和同一个 sha256；`get_url` 超时 120 秒，Helm 等待上限
 10 分钟，外层 `timeout` 为 660 秒，避免网络或集群异常导致无限等待。**不使用 Helm 仓库
@@ -38,7 +38,7 @@ helm template argocd <chart> -n argocd -f ansible/roles/argocd/files/values.yaml
 渲染结果确认：
 
 - 镜像只有 `quay.io/argoproj/argocd:v3.6.1` 与
-  `ecr-public.aws.com/docker/library/redis:8.6.4-alpine`；
+  `docker.io/library/redis:8.6.4-alpine`；
 - `argocd-application-controller`、`argocd-repo-server`、`argocd-server`、
   `argocd-redis` 的 replicas 均为 1；
 - `argocd-applicationset-controller` 的 replicas 为 0；
@@ -47,7 +47,7 @@ helm template argocd <chart> -n argocd -f ansible/roles/argocd/files/values.yaml
 
 完整渲染文件保存在仓库外：
 `../../work/argocd-cache/argocd-rendered.yaml`。该验证只证明 chart 可渲染，
-**不证明任何对象已在真实集群创建**。
+静态渲染只验证配置；真实集群结果另外记录于 `evidence/gitops-*.json`。
 
 ## 2. 文件与标签
 
@@ -140,7 +140,7 @@ kubectl -n argocd port-forward svc/argocd-server 8080:443
 
 如果镜像仍是占位（例如 `sha-REPLACE_WITH_ACTUAL_IMMUTABLE_TAG`），任务会**明确失败并拒绝
 创建 Application**，不会用占位镜像制造“已同步”的假象。安装 Argo CD 本身不受影响：
-先运行 `--tags argocd`，等主代理/人工把真实 SHA 写入 `gitops/demo/values.yaml` 并提交后，
+先运行 `--tags argocd`，等维护者把已构建成功的真实 SHA 写入 `gitops/demo/values.yaml` 并提交后，
 再运行 `--tags application`。
 
 AppProject 的边界（以仓库现有文件为准）：
@@ -184,12 +184,11 @@ kubectl -n argocd get appproject demo -o yaml
 kubectl -n argocd get application demo -o wide
 ```
 
-## 8. 未验证 / 待主代理执行
+## 8. 实际验收与边界
 
-- 本次没有 SSH、没有执行 playbook、没有部署或 apply 任何对象；
-- 没有 commit / push；
-- 没有在真实集群验证 Argo CD Pod 启动、TLS 端口转发、初始 Secret 登录；
-- 没有验证 Application 的 sync/health，因为 `gitops/demo/values.yaml` 仍由主代理在 CI
-  产出真实 SHA 后更新；
-- Ansible 语法、Helm lint/template 只做本地静态验证，不能替代真实集群验收；
-- `applicationSet.replicas: 0` 的上游限制见第 6 节。
+- 4 个核心 Pod Ready，Application Synced/Healthy。
+- Git 发布和 `git revert` 回退后，`/version` 与实际镜像 SHA 均匹配，健康/就绪/业务接口返回 200。
+- 安装配置复跑 master 30 个任务、changed=0，见 `evidence/argocd-idempotency.txt`。
+- repo-server 使用 `http://11.0.1.1:7890` 代理出网，需宿主机代理保持可用；直连环境要将 values 中 repoServer.env 改为空列表。
+- 本次验收覆盖 API、实际服务与权限配置；未将浏览器管理员登录作为验收项。
+- 非 HA，ApplicationSet 为 replicas=0，上游限制见第 6 节。

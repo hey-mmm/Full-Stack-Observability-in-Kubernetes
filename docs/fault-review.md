@@ -8,7 +8,7 @@
 | 慢请求 3000 ms | 2026-11-11T13:24:37Z | 2026-11-11T13:26:43.138Z | 2026-11-11T13:28:09.558Z | 2026-11-11T13:28:10Z |
 | 启动失败（旧 Pod 继续服务） | 2026-11-11T13:34:21Z | 2026-11-11T13:37:27.649Z | 2026-11-11T13:39:15.099Z | 2026-11-11T13:39:21Z |
 
-证据：`evidence/drill-events.jsonl` 保存每次注入、观察、确认和恢复；`evidence/demo-alerts.json` 保存真实 Alertmanager webhook 通知及 fingerprint。根因确认时间取主代理写入记录的时间，不倒填日志产生时间。
+证据：`evidence/drill-events.jsonl` 保存每次注入、观察、确认和恢复；`evidence/demo-alerts.json` 保存真实 Alertmanager webhook 通知及 fingerprint。根因确认时间取操作者写入记录的时间，不倒填日志产生时间。
 
 - 500：`DEMO_ERROR_RATE=1`，真实请求日志返回 500；触发 DemoHighErrorRate，恢复为 200 后收到同指纹 resolved。
 - 慢请求：`DEMO_LATENCY_MS=3000`，请求日志耗时约 3.00–3.01 秒；触发 DemoP95LatencyHigh，恢复后收到 resolved。

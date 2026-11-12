@@ -1,0 +1,73 @@
+{
+  "schema": "gitops-release-image/v1",
+  "purpose": "Pre-cache one demo release image on the worker for a GitOps test without changing GitOps values or workloads",
+  "image": "ghcr.io/hey-mmm/observability-demo:sha-10462f1a5cedaf8466fd1dc85f8c788eb4059496",
+  "repository": "ghcr.io/hey-mmm/observability-demo",
+  "tag": "sha-10462f1a5cedaf8466fd1dc85f8c788eb4059496",
+  "platform": "linux/amd64",
+  "official_source": "ghcr.io",
+  "mirror_source": "ghcr.nju.edu.cn",
+  "official_tag_digest": "sha256:14fb6cbea3bfb99b296792c82749331b7df680e1509fe1ca32b2901a489a31c5",
+  "official_index_digest": "sha256:14fb6cbea3bfb99b296792c82749331b7df680e1509fe1ca32b2901a489a31c5",
+  "official_amd64_manifest_digest": "sha256:14fb6cbea3bfb99b296792c82749331b7df680e1509fe1ca32b2901a489a31c5",
+  "manifest_kind": "single-platform manifest; the tag is not an OCI index, so index digest equals the linux/amd64 manifest digest",
+  "manifest_media_type": "application/vnd.docker.distribution.manifest.v2+json",
+  "config_digest": "sha256:d587dc1a0a69fdfff7188dbdb2bb07ad5002045eaeae0cf2c1e49f59b3026f69",
+  "layer_count": 10,
+  "layer_bytes": 50611846,
+  "official_verification": {
+    "method": "anonymous GHCR bearer token; sha256 computed over the manifest response body and compared with Docker-Content-Digest",
+    "http_status": 200,
+    "digest_header_matches_body": true,
+    "tag_digest_matches_amd64_manifest_digest": true
+  },
+  "mirror_tag_digest": "sha256:14fb6cbea3bfb99b296792c82749331b7df680e1509fe1ca32b2901a489a31c5",
+  "mirror_index_digest": "sha256:14fb6cbea3bfb99b296792c82749331b7df680e1509fe1ca32b2901a489a31c5",
+  "mirror_amd64_manifest_digest": "sha256:14fb6cbea3bfb99b296792c82749331b7df680e1509fe1ca32b2901a489a31c5",
+  "mirror_verification": {
+    "method": "anonymous manifest fetch; sha256 computed over the manifest response body and compared with Docker-Content-Digest",
+    "http_status": 200,
+    "digest_header_matches_body": true,
+    "matches_official_tag_digest": true,
+    "matches_official_amd64_manifest_digest": true
+  },
+  "worker": {
+    "hostname": "worker",
+    "address": "11.0.1.11",
+    "runtime": "containerd 2.3.6",
+    "namespace": "k8s.io",
+    "pull_source": "ghcr.nju.edu.cn/hey-mmm/observability-demo:sha-10462f1a5cedaf8466fd1dc85f8c788eb4059496",
+    "pull_network": "direct network; HTTP_PROXY, HTTPS_PROXY, http_proxy, https_proxy, ALL_PROXY and all_proxy unset, NO_PROXY=*",
+    "pull_command": "ctr -n k8s.io images pull --local --platform linux/amd64 --max-concurrent-downloads 4",
+    "pull_status": "success",
+    "pull_reused_cached_layers": true,
+    "target_manifest_digest": "sha256:14fb6cbea3bfb99b296792c82749331b7df680e1509fe1ca32b2901a489a31c5",
+    "target_manifest_digest_matches_official": true,
+    "image_id": "sha256:d587dc1a0a69fdfff7188dbdb2bb07ad5002045eaeae0cf2c1e49f59b3026f69",
+    "crictl_image_id": "d587dc1a0a69f",
+    "image_size_bytes": 50623394,
+    "image_id_verified": true,
+    "verification_methods": [
+      "ctr -n k8s.io images ls (mirror and canonical tags resolve to sha256:14fb6cbea3bfb99b296792c82749331b7df680e1509fe1ca32b2901a489a31c5)",
+      "ctr -n k8s.io content get (manifest config digest sha256:d587dc1a0a69fdfff7188dbdb2bb07ad5002045eaeae0cf2c1e49f59b3026f69)",
+      "crictl images (IMAGE ID d587dc1a0a69f)",
+      "crictl inspecti (id sha256:d587dc1a0a69fdfff7188dbdb2bb07ad5002045eaeae0cf2c1e49f59b3026f69, size 50623394)"
+    ],
+    "cached_refs": [
+      "ghcr.nju.edu.cn/hey-mmm/observability-demo:sha-10462f1a5cedaf8466fd1dc85f8c788eb4059496",
+      "ghcr.io/hey-mmm/observability-demo:sha-10462f1a5cedaf8466fd1dc85f8c788eb4059496"
+    ],
+    "canonical_tag_created": true,
+    "canonical_tag_created_only_after_digest_match": true
+  },
+  "gitops": {
+    "values_or_deployment_changed": false,
+    "files_created_by_this_task": [
+      "docs/evidence/gitops-release-image.json"
+    ],
+    "containerd_restarted": false,
+    "kubelet_restarted": false
+  },
+  "result": "verified",
+  "checked_at": "2026-11-12T00:51:34Z"
+}

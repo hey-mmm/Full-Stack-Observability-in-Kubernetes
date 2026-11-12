@@ -31,7 +31,8 @@ controller:
 
 repoServer:
   replicas: 1
-  # Lab egress for Git fetch. Change/remove these entries on another network.
+  # This lab uses the host proxy for reliable GitHub access. Keep it running
+  # during reconciliation; direct-access labs can replace this list with [].
   env:
     - name: HTTP_PROXY
       value: http://11.0.1.1:7890

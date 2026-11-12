@@ -1,0 +1,4 @@
+Verified on 2026-11-12 with curl, HTTPS certificate validation enabled.
+Host -> http://127.0.0.1:7890 -> https://github.com : HTTP 200
+master -> http://11.0.1.1:7890 -> https://github.com : HTTP 200
+worker -> http://11.0.1.1:7890 -> https://github.com : HTTP 200

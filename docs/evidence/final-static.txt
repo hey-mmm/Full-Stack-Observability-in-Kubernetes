@@ -1,0 +1,42 @@
+Guest Bash syntax checks: all scripts/*.sh scripts/acceptance/*.sh scripts/drills/*.sh passed.
+Python compile: scripts/acceptance/gitops.py and scripts/drills/persistence.py passed.
+==> Linting charts/demo
+[INFO] Chart.yaml: icon is recommended
+
+1 chart(s) linted, 0 chart(s) failed
+
+playbook: playbooks/site.yml
+
+playbook: playbooks/platform.yml
+
+playbook: playbooks/demo.yml
+
+playbook: playbooks/gitops.yml
+
+Final Ansible config check without the temporary runner environment:
+ANSIBLE_PIPELINING(/home/myt/Full-Stack-Observability-in-Kubernetes/ansible/ansible.cfg) = True
+COLLECTIONS_PATHS(/home/myt/Full-Stack-Observability-in-Kubernetes/ansible/ansible.cfg) = ['/home/myt/Full-Stack-Observability-in-Kubernetes/ansible/collections']
+CONFIG_FILE() = /home/myt/Full-Stack-Observability-in-Kubernetes/ansible/ansible.cfg
+DEFAULT_BECOME(/home/myt/Full-Stack-Observability-in-Kubernetes/ansible/ansible.cfg) = True
+DEFAULT_BECOME_ASK_PASS(/home/myt/Full-Stack-Observability-in-Kubernetes/ansible/ansible.cfg) = False
+DEFAULT_BECOME_METHOD(/home/myt/Full-Stack-Observability-in-Kubernetes/ansible/ansible.cfg) = sudo
+DEFAULT_BECOME_USER(/home/myt/Full-Stack-Observability-in-Kubernetes/ansible/ansible.cfg) = root
+DEFAULT_FORKS(/home/myt/Full-Stack-Observability-in-Kubernetes/ansible/ansible.cfg) = 5
+DEFAULT_HOST_LIST(/home/myt/Full-Stack-Observability-in-Kubernetes/ansible/ansible.cfg) = ['/home/myt/Full-Stack-Observability-in-Kubernetes/ansible/inventory/lab.yml']
+DEFAULT_ROLES_PATH(/home/myt/Full-Stack-Observability-in-Kubernetes/ansible/ansible.cfg) = ['/home/myt/Full-Stack-Observability-in-Kubernetes/ansible/roles']
+DEFAULT_STDOUT_CALLBACK(/home/myt/Full-Stack-Observability-in-Kubernetes/ansible/ansible.cfg) = default
+DEFAULT_TIMEOUT(/home/myt/Full-Stack-Observability-in-Kubernetes/ansible/ansible.cfg) = 30
+DEPRECATION_WARNINGS(/home/myt/Full-Stack-Observability-in-Kubernetes/ansible/ansible.cfg) = True
+HOST_KEY_CHECKING(/home/myt/Full-Stack-Observability-in-Kubernetes/ansible/ansible.cfg) = True
+INTERPRETER_PYTHON(/home/myt/Full-Stack-Observability-in-Kubernetes/ansible/ansible.cfg) = auto_silent
+RETRY_FILES_ENABLED(/home/myt/Full-Stack-Observability-in-Kubernetes/ansible/ansible.cfg) = False
+
+GALAXY_SERVERS:
+
+playbook: playbooks/site.yml
+
+playbook: playbooks/platform.yml
+
+playbook: playbooks/demo.yml
+
+playbook: playbooks/gitops.yml

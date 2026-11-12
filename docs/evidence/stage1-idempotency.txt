@@ -16,12 +16,12 @@ ok: [worker] => {
 }
 
 TASK [common : Install base packages] ******************************************
-ok: [master]
 ok: [worker]
+ok: [master]
 
 TASK [common : Detect an already enrolled kubelet before hostname changes] *****
-ok: [worker]
 ok: [master]
+ok: [worker]
 
 TASK [common : Refuse to rename a node that may already belong to a cluster] ***
 ok: [master] => {
@@ -34,16 +34,16 @@ ok: [worker] => {
 }
 
 TASK [common : Set the explicit inventory hostname] ****************************
-ok: [worker]
 ok: [master]
+ok: [worker]
 
 TASK [common : Keep the explicit hostname resolvable in /etc/hosts] ************
 ok: [worker]
 ok: [master]
 
 TASK [common : Remove the stale localdomain search domain from the node resolver] ***
-ok: [master]
 ok: [worker]
+ok: [master]
 
 TASK [common : Verify the node resolver does not advertise localdomain] ********
 ok: [worker]
@@ -54,10 +54,10 @@ ok: [worker]
 ok: [master]
 
 TASK [common : Load kernel modules now] ****************************************
-ok: [worker] => (item=overlay)
 ok: [master] => (item=overlay)
-ok: [worker] => (item=br_netfilter)
+ok: [worker] => (item=overlay)
 ok: [master] => (item=br_netfilter)
+ok: [worker] => (item=br_netfilter)
 
 TASK [common : Persist Kubernetes sysctl settings] *****************************
 ok: [worker]
@@ -83,21 +83,29 @@ TASK [common : Ensure systemd-timesyncd is enabled] ****************************
 ok: [worker]
 ok: [master]
 
-TASK [common : Ensure NTP synchronization is enabled] **************************
+TASK [common : Ensure NTP drop-in directory] ***********************************
+ok: [master]
+ok: [worker]
+
+TASK [common : Configure reachable NTP servers independently of proxy DNS] *****
 ok: [worker]
 ok: [master]
+
+TASK [common : Ensure NTP synchronization is enabled] **************************
+ok: [master]
+ok: [worker]
 
 TASK [common : Verify swap is disabled] ****************************************
 ok: [worker]
 ok: [master]
 
 TASK [common : Verify forwarding sysctl is active] *****************************
-ok: [worker]
 ok: [master]
+ok: [worker]
 
 TASK [containerd : Ensure apt keyring directory exists] ************************
-ok: [worker]
 ok: [master]
+ok: [worker]
 
 TASK [containerd : Install Docker apt signing key] *****************************
 ok: [worker]
@@ -112,8 +120,8 @@ skipping: [master]
 skipping: [worker]
 
 TASK [containerd : Ensure apt cache is available] ******************************
-ok: [master]
 ok: [worker]
+ok: [master]
 
 TASK [containerd : Install pinned containerd.io] *******************************
 ok: [worker]
@@ -124,8 +132,8 @@ ok: [worker]
 ok: [master]
 
 TASK [containerd : Ensure containerd configuration directory exists] ***********
-ok: [worker]
 ok: [master]
+ok: [worker]
 
 TASK [containerd : Ensure containerd systemd drop-in directory exists when a proxy is configured] ***
 ok: [worker]
@@ -158,68 +166,68 @@ ok: [worker]
 ok: [master]
 
 TASK [containerd : Ensure per-registry configuration directories exist] ********
-ok: [master] => (item=docker.io)
 ok: [worker] => (item=docker.io)
-ok: [master] => (item=quay.io)
+ok: [master] => (item=docker.io)
 ok: [worker] => (item=quay.io)
-ok: [master] => (item=ghcr.io)
+ok: [master] => (item=quay.io)
 ok: [worker] => (item=ghcr.io)
-ok: [master] => (item=registry.k8s.io)
+ok: [master] => (item=ghcr.io)
 ok: [worker] => (item=registry.k8s.io)
+ok: [master] => (item=registry.k8s.io)
 
 TASK [containerd : Install pull-only registry mirror hosts.toml] ***************
-ok: [master] => (item=docker.io)
 ok: [worker] => (item=docker.io)
-ok: [master] => (item=quay.io)
+ok: [master] => (item=docker.io)
 ok: [worker] => (item=quay.io)
-ok: [master] => (item=ghcr.io)
+ok: [master] => (item=quay.io)
 ok: [worker] => (item=ghcr.io)
-ok: [master] => (item=registry.k8s.io)
+ok: [master] => (item=ghcr.io)
 ok: [worker] => (item=registry.k8s.io)
+ok: [master] => (item=registry.k8s.io)
 
 TASK [containerd : Check ownership of existing hosts.toml before cleanup] ******
-skipping: [master] => (item=quay.io) 
-skipping: [worker] => (item=quay.io) 
-skipping: [master] => (item=docker.io) 
-skipping: [worker] => (item=docker.io) 
-skipping: [worker] => (item=ghcr.io) 
-skipping: [master] => (item=ghcr.io) 
-skipping: [worker] => (item=registry.k8s.io) 
-skipping: [master] => (item=registry.k8s.io) 
-skipping: [worker]
+skipping: [master] => (item=quay.io)
+skipping: [master] => (item=docker.io)
+skipping: [master] => (item=ghcr.io)
+skipping: [master] => (item=registry.k8s.io)
 skipping: [master]
+skipping: [worker] => (item=quay.io)
+skipping: [worker] => (item=docker.io)
+skipping: [worker] => (item=ghcr.io)
+skipping: [worker] => (item=registry.k8s.io)
+skipping: [worker]
 
 TASK [containerd : Remove role-managed hosts.toml when a registry mirror is not configured] ***
-skipping: [master] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'quay.io'}) 
-skipping: [master] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'docker.io'}) 
-skipping: [master] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'ghcr.io'}) 
-skipping: [master] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'registry.k8s.io'}) 
+skipping: [master] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'quay.io'})
+skipping: [master] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'docker.io'})
+skipping: [master] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'ghcr.io'})
+skipping: [worker] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'quay.io'})
+skipping: [master] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'registry.k8s.io'})
 skipping: [master]
-skipping: [worker] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'quay.io'}) 
-skipping: [worker] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'docker.io'}) 
-skipping: [worker] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'ghcr.io'}) 
-skipping: [worker] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'registry.k8s.io'}) 
+skipping: [worker] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'docker.io'})
+skipping: [worker] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'ghcr.io'})
+skipping: [worker] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'registry.k8s.io'})
 skipping: [worker]
 
 TASK [containerd : Remove empty per-registry directories after managed config cleanup] ***
-skipping: [master] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'quay.io'}) 
-skipping: [worker] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'quay.io'}) 
-skipping: [master] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'docker.io'}) 
-skipping: [worker] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'docker.io'}) 
-skipping: [master] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'ghcr.io'}) 
-skipping: [worker] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'ghcr.io'}) 
-skipping: [master] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'registry.k8s.io'}) 
+skipping: [master] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'quay.io'})
+skipping: [master] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'docker.io'})
+skipping: [master] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'ghcr.io'})
+skipping: [master] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'registry.k8s.io'})
 skipping: [master]
-skipping: [worker] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'registry.k8s.io'}) 
+skipping: [worker] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'quay.io'})
+skipping: [worker] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'docker.io'})
+skipping: [worker] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'ghcr.io'})
+skipping: [worker] => (item={'changed': False, 'failed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'false_condition': 'item not in containerd_registry_mirrors', 'ansible_loop_var': 'item', 'item': 'registry.k8s.io'})
 skipping: [worker]
 
 TASK [containerd : Install crictl configuration pinned to the containerd CRI socket] ***
-ok: [master]
 ok: [worker]
+ok: [master]
 
 TASK [containerd : Ensure containerd is enabled and running] *******************
-ok: [master]
 ok: [worker]
+ok: [master]
 
 TASK [containerd : Apply containerd configuration before Kubernetes starts] ****
 
@@ -230,8 +238,8 @@ ok: [worker]
 ok: [master]
 
 TASK [containerd : Verify containerd v3 config enables the systemd cgroup driver] ***
-ok: [worker]
 ok: [master]
+ok: [worker]
 
 TASK [containerd : Verify the configured pause image is pinned in config v3] ***
 ok: [worker]
@@ -256,8 +264,8 @@ ok: [worker]
 ok: [master]
 
 TASK [kubernetes : Install Kubernetes apt signing key] *************************
-ok: [worker]
 ok: [master]
+ok: [worker]
 
 TASK [kubernetes : Configure pinned Kubernetes apt repository] *****************
 ok: [worker]
@@ -268,24 +276,24 @@ skipping: [master]
 skipping: [worker]
 
 TASK [kubernetes : Ensure apt cache is available] ******************************
-ok: [master]
 ok: [worker]
+ok: [master]
 
 TASK [kubernetes : Install pinned kubelet, kubeadm and kubectl] ****************
 ok: [worker]
 ok: [master]
 
 TASK [kubernetes : Hold Kubernetes package versions] ***************************
-ok: [worker] => (item=kubelet)
 ok: [master] => (item=kubelet)
-ok: [master] => (item=kubeadm)
+ok: [worker] => (item=kubelet)
 ok: [worker] => (item=kubeadm)
-ok: [master] => (item=kubectl)
+ok: [master] => (item=kubeadm)
 ok: [worker] => (item=kubectl)
+ok: [master] => (item=kubectl)
 
 TASK [kubernetes : Enable kubelet without forcing it to start before init/join] ***
-ok: [worker]
 ok: [master]
+ok: [worker]
 
 TASK [kubernetes : Read installed kubeadm version] *****************************
 ok: [worker]
@@ -361,8 +369,8 @@ TASK [control_plane : Show control-plane node status] **************************
 ok: [master] => {
     "control_plane_nodes.stdout_lines": [
         "NAME     STATUS   ROLES           AGE    VERSION   INTERNAL-IP   EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION               CONTAINER-RUNTIME",
-        "master   Ready    control-plane   140m   v1.37.2   11.0.1.10     <none>        Ubuntu 22.04.5 LTS   5.15.0-177-generic (amd64)   containerd://2.3.6",
-        "worker   Ready    <none>          140m   v1.37.2   11.0.1.11     <none>        Ubuntu 22.04.5 LTS   5.15.0-177-generic (amd64)   containerd://2.3.6"
+        "master   Ready    control-plane   3h5m   v1.37.2   11.0.1.10     <none>        Ubuntu 22.04.5 LTS   5.15.0-177-generic (amd64)   containerd://2.3.6",
+        "worker   Ready    <none>          3h4m   v1.37.2   11.0.1.11     <none>        Ubuntu 22.04.5 LTS   5.15.0-177-generic (amd64)   containerd://2.3.6"
     ]
 }
 
@@ -449,8 +457,8 @@ ok: [master]
 ok: [worker]
 
 TASK [Bound parallel image pulls] **********************************************
-ok: [master]
 ok: [worker]
+ok: [master]
 
 PLAY [Stage 1 - Verify cluster, CNI and DNS convergence] ***********************
 
@@ -476,12 +484,12 @@ TASK [Show final node table] ***************************************************
 ok: [master] => {
     "final_nodes.stdout_lines": [
         "NAME     STATUS   ROLES           AGE    VERSION   INTERNAL-IP   EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION               CONTAINER-RUNTIME",
-        "master   Ready    control-plane   140m   v1.37.2   11.0.1.10     <none>        Ubuntu 22.04.5 LTS   5.15.0-177-generic (amd64)   containerd://2.3.6",
-        "worker   Ready    <none>          140m   v1.37.2   11.0.1.11     <none>        Ubuntu 22.04.5 LTS   5.15.0-177-generic (amd64)   containerd://2.3.6"
+        "master   Ready    control-plane   3h5m   v1.37.2   11.0.1.10     <none>        Ubuntu 22.04.5 LTS   5.15.0-177-generic (amd64)   containerd://2.3.6",
+        "worker   Ready    <none>          3h5m   v1.37.2   11.0.1.11     <none>        Ubuntu 22.04.5 LTS   5.15.0-177-generic (amd64)   containerd://2.3.6"
     ]
 }
 
 PLAY RECAP *********************************************************************
-master                     : ok=81   changed=0    unreachable=0    failed=0    skipped=11   rescued=0    ignored=0   
-worker                     : ok=60   changed=0    unreachable=0    failed=0    skipped=10   rescued=0    ignored=0   
+master                     : ok=83   changed=0    unreachable=0    failed=0    skipped=11   rescued=0    ignored=0
+worker                     : ok=62   changed=0    unreachable=0    failed=0    skipped=10   rescued=0    ignored=0
 

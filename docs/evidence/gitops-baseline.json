@@ -1,0 +1,22 @@
+{
+  "observed_at_utc": "2026-11-12T00:53:25.664287+00:00",
+  "git_revision": "10462f1a5cedaf8466fd1dc85f8c788eb4059496",
+  "sync": "Synced",
+  "health": "Healthy",
+  "auto_sync": {
+    "prune": true,
+    "selfHeal": true
+  },
+  "image": "ghcr.io/hey-mmm/observability-demo:sha-c0bff8abf5625903e5b9b19b586e9660b9fe7a8c",
+  "version": {
+    "app_version": "0.1.0-c0bff8abf5625903e5b9b19b586e9660b9fe7a8c",
+    "git_sha": "c0bff8abf5625903e5b9b19b586e9660b9fe7a8c",
+    "app_env": "production",
+    "python_version": "3.13.9",
+    "started_at": "2026-11-11T13:32:50.918Z"
+  },
+  "project_cluster_writes": false,
+  "core_pods_ready": 4,
+  "health_readiness_work_http": 200,
+  "result": "PASS"
+}

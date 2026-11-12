@@ -1,15 +1,17 @@
-# 阶段 1 运行与验收说明
+# 阶段 1 运行与验收说明（已执行）
 
-> 本文件是操作说明，不是执行结果。当前仓库代码尚未在目标 VM 上运行，不能写成“已部署”或“已通过”。旧 1.28 集群由主代理在 playbook 之外清理；本仓库不自动执行 `kubeadm reset`。
+> 本文件保留操作顺序，并记录实际结果。阶段 1 已在目标 VM 执行并通过：**33/33 PASS**，证据见 [evidence/stage1-cluster.txt](evidence/stage1-cluster.txt)。全量 `site.yml` 最终复跑为 **master 83 / worker 62 个任务，changed=0 both**，完整日志见 [evidence/stage1-idempotency.txt](evidence/stage1-idempotency.txt)。旧 1.28 集群由操作者在 playbook 之外清理；本仓库不自动执行 `kubeadm reset`。
+>
+> 下面的命令用于复现和复核，不是“待执行”草稿；不要在没有逐项验收的情况下重跑会改变集群的步骤。
 
 ## 1. 前置条件
 
 - master `11.0.1.10`，worker `11.0.1.11`，SSH 用户 `myt`。
-- 主代理已完成或确认：
+- 操作者已完成或确认：
   - 旧 1.28 集群已按用户授权清理；
   - master 50 GB、worker 100 GB 磁盘，worker 4 vCPU / 12 GiB 内存；
   - 两台 VM 可互相访问，22 端口可达；
-  - `myt` 可免交互 sudo；
+  - `myt` 有 sudo 权限；实施期间的临时免密规则已移除，复跑加 `--ask-become-pass`；
   - 时区和 NTP 可调整。
 - inventory 只保存地址和用户名，不保存密码。执行环境必须自行提供 SSH 认证。
 - 不在 Windows 上运行 Ansible。
@@ -47,13 +49,13 @@ Python SDK 固定为 `kubernetes 33.1.0`、`jsonpatch 1.33`、`PyYAML 6.0.3`；�
 - `community.general 14.0.1`
 - `kubernetes.core 6.6.0`
 
-collection 安装到 `ansible/collections`（已在 `.gitignore` 排除）；`ansible.cfg` 的 `collections_paths = ./collections` 只在 `ansible/` 目录执行时生效。不要用系统 `pip install ansible` 覆盖 Ubuntu 包。
+collection 安装到 `ansible/collections`（已在 `.gitignore` 排除）；`ansible.cfg` 使用当前支持的 `collections_path = ./collections`。在 `ansible/` 目录执行命令，SSH 认证环境变量见 [creation-steps.md](creation-steps.md)。不要用系统 `pip install ansible` 覆盖 Ubuntu 包。
 
 > 若 uv 安装器版本变化，应在实际 bootstrap 记录中注明。
 
 ## 3. 只读前置检查
 
-在两台 VM 上分别执行。脚本不会安装软件、修改 sysctl、加入集群或扫描其他地址。worker 上若没有仓库副本，由主代理只复制 `scripts/preflight.sh` 到 worker 执行；脚本不依赖仓库其他文件。
+在两台 VM 上分别执行。脚本不会安装软件、修改 sysctl、加入集群或扫描其他地址。worker 上若没有仓库副本，由操作者只复制 `scripts/preflight.sh` 到 worker 执行；脚本不依赖仓库其他文件。
 
 ```bash
 chmod +x scripts/preflight.sh scripts/acceptance/cluster.sh
@@ -130,7 +132,7 @@ KUBECONFIG=/etc/kubernetes/admin.conf ./scripts/acceptance/cluster.sh
 脚本实际检查：
 
 - API `/readyz`。
-- 恰好 2 个节点，`master`/`worker` 均 Ready，InternalIP 分别为 `.129`/`.130`，容器运行时为 containerd。
+- 恰好 2 个节点，`master`/`worker` 均 Ready，InternalIP 分别为 `11.0.1.10`/`11.0.1.11`，容器运行时为 containerd。
 - kubeadm `podSubnet` 与 Calico 默认 IPv4 IPPool 均为 `10.244.0.0/16`。
 - kube-apiserver、controller-manager、scheduler、etcd Ready。
 - kube-proxy、calico-node、calico-kube-controllers、CoreDNS Ready。
@@ -164,21 +166,24 @@ $HOME/.venvs/ansible/bin/ansible-playbook -i inventory/lab.yml playbooks/site.ym
 
 | 现象 | 处理 |
 | --- | --- |
-| `admin.conf` 存在但版本为 1.28 或 `/readyz` 失败 | 停止。主代理在 playbook 外清理旧集群；本仓库不会自动 reset。 |
+| `admin.conf` 存在但版本为 1.28 或 `/readyz` 失败 | 停止。操作者在 playbook 外清理旧集群；本仓库不会自动 reset。 |
 | 只有 `kube-apiserver.yaml`，无 `admin.conf` | 停止。检查部分初始化状态，不要直接删除证书或再次 init。 |
-| worker `kubelet.conf` 存在但 API server/Node/IP 不匹配 | 停止。该 enrollment 不属于目标集群，按主代理流程清理后再 join。 |
+| worker `kubelet.conf` 存在但 API server/Node/IP 不匹配 | 停止。该 enrollment 不属于目标集群，按操作者流程清理后再 join。 |
 | containerd 启动失败或 CRI 插件未加载 | 检查 `/etc/containerd/config.toml`（v3）和 `journalctl -u containerd`；不得回退到旧 2.2.3 配置。 |
 | Calico Pod 不 Ready | 检查 `kubectl -n kube-system get pods -o wide`、Calico 日志、Pod CIDR 是否为 `10.244.0.0/16`；不要删除 master taint 来代替排查。 |
 | 测试镜像拉取失败 | 记录网络/镜像仓库错误；不要改成 `latest` 或跳过跨节点网络检查来宣告通过。 |
 
-## 9. 结果记录要求
+## 9. 实际验收结果
 
-阶段 1 验收记录至少包含：
+| 项目 | 结果 |
+| --- | --- |
+| 执行日期 | 2026-11-11 19:15 CST |
+| 命令 | `sudo env KUBECONFIG=/etc/kubernetes/admin.conf bash scripts/acceptance/cluster.sh` |
+| 集群版本 | Kubernetes v1.37.2、containerd 2.3.6、Calico v3.33.0、CoreDNS |
+| 退出码 / 计数 | exit 0，**33 PASS / 0 FAIL** |
+| 幂等复跑 | 全量 `site.yml`：master **83**、worker **62** 个任务，changed=0 both；guest `/tmp/site-final-idempotency.log` |
+| 已知修复 | 节点 resolv.conf 的 `localdomain` 搜索域导致 CoreDNS 上游 fake-IP 抢先解析；删除后 33/33，详见 `stage1-cluster.txt` |
 
-- 实际执行日期、命令、Ansible 版本、Kubernetes/Calico/containerd 版本；
-- `kubectl get nodes -o wide` 实际输出；
-- 验收脚本退出码和 pass/fail 计数；
-- 第二次运行的关键 changed/unchanged 结果；
-- 未通过项和未验证项。
+33/33 覆盖：API `/readyz`、两节点 Ready/containerd/InternalIP、控制面四个静态 Pod、kube-proxy/calico-node/calico-kube-controllers/CoreDNS、Service CIDR、控制面 taint、Pod/Calico CIDR、临时跨节点 Pod 的双向 ICMP、集群 DNS、Service HTTP。临时 namespace 已删除，未删除 taint，未执行 reset。
 
-未实际执行前，以上全部标记为“待执行”，不得预填成功结论。
+阶段 1 已验收；后续阶段结果见 [implementation-journal.md](implementation-journal.md) 与 [evidence](evidence/)。

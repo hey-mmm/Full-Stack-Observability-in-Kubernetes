@@ -1,0 +1,82 @@
+Runtime snapshot, 2026-11-12 UTC. Warning events include historical drills and startup convergence; all current Pods are Ready.
+
+MASTER
+Thu Nov 12 01:06:54 AM UTC 2026
+NTPSynchronized=yes
+               total        used        free      shared  buff/cache   available
+Mem:            3875        2176         272           3        1426        1421
+Swap:              0           0           0
+Filesystem                         Size  Used Avail Use% Mounted on
+/dev/mapper/ubuntu--vg-ubuntu--lv   48G   11G   35G  24% /
+ 09:06:55 up  6:07,  1 user,  load average: 0.78, 1.41, 1.87
+NAMESPACE            NAME                                                     READY   STATUS    RESTARTS      AGE     IP               NODE     NOMINATED NODE   READINESS GATES
+argocd               argocd-application-controller-0                          1/1     Running   0             11h     10.244.171.102   worker   <none>           <none>
+argocd               argocd-redis-5bb9796b48-g2hhj                            1/1     Running   0             11h     10.244.171.100   worker   <none>           <none>
+argocd               argocd-repo-server-f98f9895c-v6zrb                       1/1     Running   0             9m42s   10.244.171.107   worker   <none>           <none>
+argocd               argocd-server-85b5d8897-6jb4t                            1/1     Running   0             11h     10.244.171.101   worker   <none>           <none>
+demo                 demo-ff97d54bf-2rd78                                     1/1     Running   0             5m17s   10.244.171.109   worker   <none>           <none>
+kube-system          calico-kube-controllers-846669895c-f6dcc                 1/1     Running   0             14h     10.244.219.66    master   <none>           <none>
+kube-system          calico-node-7md7n                                        1/1     Running   0             14h     11.0.1.10        master   <none>           <none>
+kube-system          calico-node-mzndw                                        1/1     Running   0             14h     11.0.1.11        worker   <none>           <none>
+kube-system          coredns-559f6c778d-7cfsg                                 1/1     Running   0             14h     10.244.219.65    master   <none>           <none>
+kube-system          coredns-559f6c778d-vbbfz                                 1/1     Running   0             14h     10.244.219.67    master   <none>           <none>
+kube-system          etcd-master                                              1/1     Running   0             14h     11.0.1.10        master   <none>           <none>
+kube-system          kube-apiserver-master                                    1/1     Running   0             14h     11.0.1.10        master   <none>           <none>
+kube-system          kube-controller-manager-master                           1/1     Running   0             14h     11.0.1.10        master   <none>           <none>
+kube-system          kube-proxy-68znv                                         1/1     Running   0             14h     11.0.1.11        worker   <none>           <none>
+kube-system          kube-proxy-qjndc                                         1/1     Running   0             14h     11.0.1.10        master   <none>           <none>
+kube-system          kube-scheduler-master                                    1/1     Running   0             14h     11.0.1.10        master   <none>           <none>
+local-path-storage   local-path-provisioner-6b9d5f5bbd-2ck98                  1/1     Running   0             13h     10.244.171.70    worker   <none>           <none>
+logging              alloy-2czc9                                              2/2     Running   6 (11h ago)   11h     10.244.219.74    master   <none>           <none>
+logging              alloy-zqmqk                                              2/2     Running   0             11h     10.244.171.89    worker   <none>           <none>
+logging              loki-0                                                   1/1     Running   0             11h     10.244.171.96    worker   <none>           <none>
+monitoring           alert-receiver-849f658bc5-2gbtz                          1/1     Running   0             13h     10.244.171.72    worker   <none>           <none>
+monitoring           alertmanager-monitoring-kube-prometheus-alertmanager-0   2/2     Running   0             13h     10.244.171.80    worker   <none>           <none>
+monitoring           monitoring-grafana-55f76fccdd-qgr5q                      3/3     Running   0             11h     10.244.171.86    worker   <none>           <none>
+monitoring           monitoring-kube-prometheus-operator-77cdf7974-kcxsg      1/1     Running   0             13h     10.244.171.76    worker   <none>           <none>
+monitoring           monitoring-kube-state-metrics-b9f9d6498-5nsgp            1/1     Running   0             13h     10.244.171.73    worker   <none>           <none>
+monitoring           monitoring-prometheus-node-exporter-c8jmd                1/1     Running   0             13h     11.0.1.10        master   <none>           <none>
+monitoring           monitoring-prometheus-node-exporter-p6pb7                1/1     Running   0             13h     11.0.1.11        worker   <none>           <none>
+monitoring           prometheus-monitoring-kube-prometheus-prometheus-0       2/2     Running   0             11h     10.244.171.95    worker   <none>           <none>
+NAMESPACE            LAST SEEN   TYPE      REASON                         OBJECT                                          MESSAGE
+local-path-storage   17m         Warning   Unhealthy                      pod/local-path-provisioner-6b9d5f5bbd-2ck98     Readiness probe failed: Get "http://10.244.171.70:8080/ready": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+monitoring           17m         Warning   Unhealthy                      pod/monitoring-prometheus-node-exporter-p6pb7   Liveness probe failed: Get "http://11.0.1.11:9100/": dial tcp 11.0.1.11:9100: connect: network is unreachable
+logging              11h         Warning   BackOff                        pod/alloy-2czc9                                 Back-off restarting failed container alloy in pod alloy-2czc9_logging(c9006300-901c-4f26-abe1-d9216f3cc9dc)
+logging              11h         Warning   FailedToUpdateEndpointSlices   service/alloy                                   Error updating Endpoint Slices for Service logging/alloy: failed to update alloy-59crv EndpointSlice for Service logging/alloy: Unauthorized
+logging              11h         Warning   FailedToUpdateEndpoint         endpoints/alloy                                 Failed to update endpoint logging/alloy: Unauthorized
+demo                 11h         Warning   ReplicaSetCreateError          deployment/demo                                 Failed to create new replica set "demo-66f5fcfd4": Unauthorized
+demo                 11h         Warning   FailedCreate                   replicaset/demo-66f5fcfd4                       Error creating: Unauthorized
+demo                 11h         Warning   Unhealthy                      pod/demo-66f5fcfd4-x88mb                        Startup probe failed: Get "http://10.244.171.92:8080/healthz": dial tcp 10.244.171.92:8080: connect: connection refused
+logging              11h         Warning   Unhealthy                      pod/loki-0                                      Readiness probe failed: HTTP probe failed with statuscode: 503
+demo                 11h         Warning   Unhealthy                      pod/demo-ff97d54bf-w8rbk                        Startup probe failed: Get "http://10.244.171.93:8080/healthz": dial tcp 10.244.171.93:8080: connect: connection refused
+demo                 11h         Warning   Unhealthy                      pod/demo-6d485d99d4-k6t59                       Startup probe failed: Get "http://10.244.171.94:8080/healthz": dial tcp 10.244.171.94:8080: connect: connection refused
+demo                 11h         Warning   BackOff                        pod/demo-6d485d99d4-k6t59                       Back-off restarting failed container demo-service in pod demo-6d485d99d4-k6t59_demo(b6d436a3-2616-4d29-bbc9-99b318b047a3)
+logging              11h         Warning   Unhealthy                      pod/loki-0                                      Readiness probe failed: HTTP probe failed with statuscode: 503
+demo                 11h         Warning   Unhealthy                      pod/demo-ff97d54bf-skthx                        Startup probe failed: Get "http://10.244.171.97:8080/healthz": dial tcp 10.244.171.97:8080: connect: connection refused
+demo                 11h         Warning   Unhealthy                      pod/demo-6d485d99d4-rznx7                       Startup probe failed: Get "http://10.244.171.98:8080/healthz": dial tcp 10.244.171.98:8080: connect: connection refused
+demo                 11h         Warning   BackOff                        pod/demo-6d485d99d4-rznx7                       Back-off restarting failed container demo-service in pod demo-6d485d99d4-rznx7_demo(ad329b90-c853-4caa-b016-fcca45d8769c)
+argocd               27m         Warning   Unhealthy                      pod/argocd-server-85b5d8897-6jb4t               Readiness probe failed: Get "http://10.244.171.101:8080/healthz": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+argocd               18m         Warning   FailedCreate                   job/argocd-redis-secret-init                    Error creating: Unauthorized
+argocd               18m         Warning   ReplicaSetCreateError          deployment/argocd-repo-server                   Failed to create new replica set "argocd-repo-server-888b99499": Unauthorized
+argocd               18m         Warning   FailedCreate                   replicaset/argocd-repo-server-888b99499         Error creating: Unauthorized
+argocd               18m         Warning   FailedToUpdateEndpoint         endpoints/argocd-repo-server                    Failed to update endpoint argocd/argocd-repo-server: Unauthorized
+argocd               18m         Warning   FailedToUpdateEndpointSlices   service/argocd-repo-server                      Error updating Endpoint Slices for Service argocd/argocd-repo-server: failed to update argocd-repo-server-mfdmj EndpointSlice for Service argocd/argocd-repo-server: Unauthorized
+kube-system          17m         Warning   Unhealthy                      pod/kube-apiserver-master                       Readiness probe failed: Get "https://11.0.1.10:6443/readyz": dial tcp 11.0.1.10:6443: connect: network is unreachable
+argocd               17m         Warning   Unhealthy                      pod/argocd-repo-server-f98f9895c-72mgs          Readiness probe failed: Get "http://10.244.171.103:8084/healthz": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+demo                 9m30s       Warning   Unhealthy                      pod/demo-5b55ff7b66-6qj6f                       Startup probe failed: Get "http://10.244.171.108:8080/healthz": dial tcp 10.244.171.108:8080: connect: connection refused
+argocd               9m28s       Warning   Unhealthy                      pod/argocd-repo-server-888b99499-hzb5p          Readiness probe failed: Get "http://10.244.171.105:8084/healthz": dial tcp 10.244.171.105:8084: connect: connection refused
+demo                 5m11s       Warning   Unhealthy                      pod/demo-ff97d54bf-2rd78                        Startup probe failed: Get "http://10.244.171.109:8080/healthz": dial tcp 10.244.171.109:8080: connect: connection refused
+demo                 5m8s        Warning   Unhealthy                      pod/demo-5b55ff7b66-6qj6f                       Readiness probe failed: Get "http://10.244.171.108:8080/readyz": dial tcp 10.244.171.108:8080: connect: connection refused
+ 187308    01:51:44 kubectl -n monitoring port-forward --address 127.0.0.1 svc/monitoring-kube-prometheus-prometheus 19090:9090
+ 187309    01:51:44 kubectl -n monitoring port-forward --address 127.0.0.1 svc/alert-receiver 18081:8080
+ 403696       12:55 bash scripts/traffic.sh --base-url http://10.104.233.119:8080 --rate 3 --duration 900 --allow-errors
+
+WORKER
+Thu Nov 12 01:06:55 AM UTC 2026
+NTPSynchronized=yes
+               total        used        free      shared  buff/cache   available
+Mem:           11931        2046         575           5        9309        9557
+Swap:              0           0           0
+Filesystem                         Size  Used Avail Use% Mounted on
+/dev/mapper/ubuntu--vg-ubuntu--lv   97G   16G   78G  17% /
+ 09:06:56 up  6:06,  1 user,  load average: 0.36, 0.65, 0.92
