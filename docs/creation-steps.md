@@ -23,6 +23,8 @@ NAT 网关与 DNS 为 `11.0.1.2`。VM 文件在 `G:\Blog\`。固定地址位于�
 
 在 master 执行，先安装 `git`、`python3-venv`、`curl`、CA 证书。代码和 SSH 用户均为 `myt`；密码、私钥、kubeconfig 不进入 Git。
 
+以下 clone 步骤用于新建环境。当前 master 的 `/home/myt/Full-Stack-Observability-in-Kubernetes` 是从宿主机同步的源码副本，未包含 `.git`；宿主机 `outputs/Full-Stack-Observability-in-Kubernetes` 才是本次提交工作的 Git checkout。日后需要在 master 编辑并提交时，另选空目录 clone，再配置 SSH/Ansible 路径，不要把已有目录当作 Git clone。Argo CD 自己从 GitHub 拉取，不依赖此源码副本。
+
 ```bash
 git clone https://github.com/hey-mmm/Full-Stack-Observability-in-Kubernetes.git
 cd Full-Stack-Observability-in-Kubernetes
