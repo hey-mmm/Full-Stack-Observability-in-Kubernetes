@@ -5,14 +5,14 @@ image:
   digest: sha256:456dfbbecf18b66b5b9e5c02bcba50c5fd4458f467e4b29c8d11d049d998677d
   pullPolicy: IfNotPresent
 fullnameOverride: demo
-replicaCount: 0
+replicaCount: 1
 appVersion: 0.1.0-c0bff8abf5625903e5b9b19b586e9660b9fe7a8c
 gitSha: c0bff8abf5625903e5b9b19b586e9660b9fe7a8c
 env:
   APP_ENV: production
   DEMO_ERROR_RATE: '0'
   DEMO_LATENCY_MS: '0'
-  DEMO_STARTUP_FAIL: 'false'
+  DEMO_STARTUP_FAIL: 'true'
 service:
   port: 8080
 serviceMonitor:
