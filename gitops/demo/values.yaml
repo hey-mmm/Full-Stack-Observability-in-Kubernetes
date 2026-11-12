@@ -1,12 +1,13 @@
+# Verified CI image; manifest digest sha256:456dfbbecf18b66b5b9e5c02bcba50c5fd4458f467e4b29c8d11d049d998677d
 image:
   repository: ghcr.io/hey-mmm/observability-demo
-  tag: sha-823770eff4e9384ceb83aa1561f9b5f95239c221
-  digest: sha256:af77edde6463b40b795b3588e545582c8cd026bd57eec2c43f150a566c2120e7
+  tag: sha-c0bff8abf5625903e5b9b19b586e9660b9fe7a8c
+  digest: sha256:456dfbbecf18b66b5b9e5c02bcba50c5fd4458f467e4b29c8d11d049d998677d
   pullPolicy: IfNotPresent
 fullnameOverride: demo
 replicaCount: 1
-appVersion: 0.1.0-823770eff4e9384ceb83aa1561f9b5f95239c221
-gitSha: 823770eff4e9384ceb83aa1561f9b5f95239c221
+appVersion: 0.1.0-c0bff8abf5625903e5b9b19b586e9660b9fe7a8c
+gitSha: c0bff8abf5625903e5b9b19b586e9660b9fe7a8c
 env:
   APP_ENV: production
   DEMO_ERROR_RATE: '0'
