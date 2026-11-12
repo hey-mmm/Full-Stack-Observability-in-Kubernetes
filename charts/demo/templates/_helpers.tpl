@@ -40,3 +40,15 @@ app.kubernetes.io/version: {{ default .Chart.AppVersion .Values.appVersion | quo
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 app.kubernetes.io/part-of: observability-demo
 {{- end }}
+{{/* Digest takes precedence; tags are a build locator, not immutable identity. */}}
+{{- define "demo.image" -}}
+{{- $repository := required "image.repository is required" .Values.image.repository -}}
+{{- if .Values.image.digest -}}
+{{- if not (regexMatch "^sha256:[0-9a-f]{64}$" .Values.image.digest) -}}
+{{- fail "image.digest must be sha256:<64 lowercase hex>" -}}
+{{- end -}}
+{{- printf "%s@%s" $repository .Values.image.digest -}}
+{{- else -}}
+{{- printf "%s:%s" $repository (default .Chart.AppVersion .Values.image.tag) -}}
+{{- end -}}
+{{- end -}}

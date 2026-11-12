@@ -7,6 +7,8 @@ image:
   repository: ghcr.io/example/observability-demo
   # 留空时使用 Chart.yaml 的 appVersion；也可以显式固定 tag。
   tag: ""
+  # Immutable manifest identity. When set, takes precedence over tag.
+  digest: ""
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []

@@ -66,6 +66,16 @@ jobs:
           fi
           grep -q 'kind: ServiceMonitor' /tmp/demo-monitor-rendered.yaml
 
+          # A digest identifies content even when a tag is moved.
+          DIGEST="sha256:$(printf '%064d' 0)"
+          helm template demo charts/demo -n demo -f gitops/demo/values.yaml \
+            --set-string "image.digest=$DIGEST" > /tmp/demo-digest.yaml
+          grep -Fq "ghcr.io/hey-mmm/observability-demo@$DIGEST" /tmp/demo-digest.yaml
+          if helm template demo charts/demo --set-string image.digest=invalid >/dev/null 2>&1; then
+            echo "::error::invalid digest was accepted"
+            exit 1
+          fi
+
       - name: Shell syntax check
         shell: bash
         run: |

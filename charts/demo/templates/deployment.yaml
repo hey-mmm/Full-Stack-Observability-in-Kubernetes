@@ -1,5 +1,4 @@
 {{- $appVersion := default .Chart.AppVersion .Values.appVersion -}}
-{{- $imageTag := default .Chart.AppVersion .Values.image.tag -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -37,7 +36,7 @@ spec:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: demo-service
-          image: "{{ .Values.image.repository }}:{{ $imageTag }}"
+          image: {{ include "demo.image" . | quote }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http

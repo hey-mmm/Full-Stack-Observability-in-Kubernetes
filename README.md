@@ -1,5 +1,7 @@
 # 基于 Ansible 的 Kubernetes 可观测性与 GitOps 平台
 
+> 项目二发布流程接入见 [发布风险门禁](docs/change-guard.md)。启用保护后的发布和回退均走 PR，使用镜像 digest；下文项目一验收数字是保留的历史证据。
+
 本项目在 VMware Workstation 中的 Ubuntu 22.04.5 虚拟机上，以 1 master + 1 worker 构建可重复、可验收的 Kubernetes 可观测性实验平台。重点不是“脚本能跑”，而是用真实测量、故障时间线和持久化证据证明平台可用、可定位、可恢复。
 
 > **状态（2026-11-12，以 `docs/evidence/` 为准）**
