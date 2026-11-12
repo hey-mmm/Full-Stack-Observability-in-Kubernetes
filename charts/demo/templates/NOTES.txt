@@ -11,3 +11,5 @@ ServiceMonitor 未启用（默认），当前 release 不依赖 Prometheus Opera
 
 验证发布版本：
   curl -s http://127.0.0.1:18080/version | python3 -m json.tool
+
+# Harmless acceptance marker: trusted policy must require independent maintenance.
