@@ -20,7 +20,7 @@
 | 工具 | 负责 | 不负责 | 本项目的证据 |
 | --- | --- | --- | --- |
 | Ansible | 系统基线、NTP、内核、swap、containerd、kubeadm、Calico、Helm 安装平台、Argo 安装 | 不代替验收，不自动 reset，不直接改 GitOps 期望状态 | 全量复跑 master 83 / worker 62，changed=0 both |
-| Shell | preflight、只读验收、流量、故障注入/恢复、持久化演练 | 不做配置管理，不静默删除资源 | 33/33、7/7、16/16、10/10、4/4、演练时间线 |
+| Shell | preflight、接口验收、临时网络测试、流量、故障注入/恢复、持久化演练 | 不做配置管理；变更范围与执行条件明确 | 33/33、7/7、16/16、10/10、4/4、演练时间线 |
 | Helm | 固定 chart/镜像版本，渲染 kube-prometheus-stack、Loki、Alloy、Argo CD、demo | 不决定何时部署，不替代 GitOps | chart 版本与 values 固定在 `ansible/roles/platform`、`ansible/roles/argocd` |
 | Argo CD | 只同步 Git 中的 demo 期望状态，支持 Git 回滚 | 不管平台组件；进程健康 ≠ 应用已验收 | **发布与 Git 回退 PASS**；Synced/Healthy，实际版本一致 |
 
@@ -72,7 +72,7 @@ ssh -L 3000:127.0.0.1:3000 myt@11.0.1.10 "kubectl -n monitoring port-forward svc
 ## 6. 容易被追问的点
 
 - **为什么用 Ansible 又用 Helm？** Ansible 管节点与安装顺序，Helm 管复杂组件的版本化渲染；让 Ansible 直接维护上千行上游 YAML 不可审计。
-- **为什么 Shell 不是配置管理？** Shell 只做验收和演练，默认只读；把“检查”与“修改”分开，失败时不会顺手改坏集群。
+- **为什么 Shell 不是配置管理？** app/observability/gitops 验收只查询；cluster 验收在临时命名空间创建网络测试资源并清理。故障与持久化脚本则明确限定变更范围，日常系统配置由 Ansible 管理。
 - **为什么 Argo 只管 demo？** 平台组件需要节点级权限和安装顺序，交给 Ansible/Helm 更合适；Argo 管应用可以让发布和回滚都由 Git 审计。
 - **NTP 为什么写死 IP？** `ntp.ubuntu.com` 经代理 DNS 返回 fake-IP，导致约 5–6 秒偏差；改为 UDP 可达的 `203.107.6.88`、`120.25.115.20` 后两节点 `NTPSynchronized=yes`。
 - **持久化脚本怎么跑？** `bash scripts/drills/persistence.sh --run`。必须显式 `--run`，否则拒绝执行；只重建固定 Prometheus/Loki Pod，不删 PVC。

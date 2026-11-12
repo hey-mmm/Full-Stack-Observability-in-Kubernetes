@@ -58,7 +58,7 @@ Git push ──> Actions（8 项测试）──> GHCR:sha-<commit> ──人工�
 ## Ansible、Shell、Helm、Argo 的分工
 
 - **Ansible**：唯一的基础设施配置入口。`site.yml` 管系统、运行时、kubeadm、Calico；`platform.yml` 以固定版本调用 Helm 安装存储、监控、日志；`gitops.yml` 安装 Argo CD 并注册 demo Application。受保护逻辑避免重复 init/join，不自动 `kubeadm reset`。
-- **Shell**：只做检查、验收、流量和演练，不替代配置管理。验收脚本默认只读，不 delete/restart/apply；故障脚本只 patch `demo` Deployment 的 env。
+- **Shell**：做检查、验收、流量和演练。app/observability/gitops 验收只查询；cluster 验收创建临时命名空间验证跨节点网络，退出时清理。故障脚本只改 demo 及其临时同步策略；持久化演练显式 `--run` 才重建指定 Prometheus/Loki Pod。
 - **Helm**：打包 kube-prometheus-stack、Loki、Alloy、Argo CD 和 demo，固定 chart/镜像版本并集中管理 values。Ansible 负责调用 Helm，不手写上游清单。
 - **Argo CD**：只管理 `demo` 应用的 Git desired state，不接管平台组件。Git 是唯一发布源；`kubectl rollout undo` 或 `argocd app rollback` 不能替代 `git revert`。
 
