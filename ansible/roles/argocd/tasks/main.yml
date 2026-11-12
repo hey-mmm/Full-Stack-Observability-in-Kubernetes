@@ -401,11 +401,13 @@
           - argocd_demo_values.image is defined
           - (argocd_demo_values.image.repository | default('')) == argocd_demo_repo_image
           - (argocd_demo_values.image.tag | default('')) is match('^sha-[0-9a-f]{40}$')
+          - (argocd_demo_values.image.digest | default('')) is match('^sha256:[0-9a-f]{64}$')
           - (argocd_demo_values.gitSha | default('')) is match('^[0-9a-f]{40}$')
         fail_msg: >-
           Refusing to create Application demo: gitops/demo/values.yaml still has
-          a placeholder or non-immutable image. Replace image.tag with
-          sha-<40 lowercase hex> and gitSha with the same 40 lowercase hex, commit,
+          a placeholder or missing immutable image digest. Set image.digest to
+          sha256:<64 lowercase hex>, image.tag to sha-<40 lowercase hex>, and
+          gitSha to the same 40 lowercase hex, commit,
           then rerun with --tags application. Current image.tag={{
           argocd_demo_values.image.tag | default('<missing>') }}, gitSha={{
           argocd_demo_values.gitSha | default('<missing>') }}. Installing Argo CD

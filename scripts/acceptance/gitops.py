@@ -11,6 +11,7 @@ import urllib.error
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--image-sha', required=True)
+parser.add_argument('--image-digest', help='Expected sha256 manifest digest (preferred over tag)')
 parser.add_argument('--git-revision', required=True)
 parser.add_argument('--output', required=True)
 args = parser.parse_args()
@@ -44,7 +45,10 @@ assert {(r['group'], r['kind']) for r in project['spec']['namespaceResourceWhite
     ('apps', 'Deployment'), ('', 'Service'), ('monitoring.coreos.com', 'ServiceMonitor')}
 deployment = k('-n', 'demo', 'get', 'deployment', 'demo')
 image = deployment['spec']['template']['spec']['containers'][0]['image']
-assert image == 'ghcr.io/hey-mmm/observability-demo:sha-' + args.image_sha, image
+expected_image = ('ghcr.io/hey-mmm/observability-demo@' + args.image_digest
+                  if args.image_digest else
+                  'ghcr.io/hey-mmm/observability-demo:sha-' + args.image_sha)
+assert image == expected_image, image
 service = k('-n', 'demo', 'get', 'service', 'demo')
 assert service['spec']['type'] == 'ClusterIP'
 endpoint = 'http://' + service['spec']['clusterIP'] + ':8080'

@@ -1,5 +1,7 @@
 # CI 与 GitOps 交付说明
 
+> 项目二接入后的当前发布流程见 [change-guard.md](change-guard.md)。本文保留项目一历史安装/验收过程；其中直接 push main 与仅使用 SHA tag 的示例不再作为保护启用后的日常发布操作。
+
 本文件说明本仓库可复现的 CI、镜像发布、Argo CD 安装和 GitOps 回退路径。仓库为
 `https://github.com/hey-mmm/Full-Stack-Observability-in-Kubernetes`。
 
